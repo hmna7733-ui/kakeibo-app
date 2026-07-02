@@ -245,6 +245,19 @@
     border-radius: 2px;
   }
   .section-title:first-child { margin-top: 0; }
+  .income-input-btn {
+    width: 100%; margin: 12px 0 4px;
+    padding: 13px 16px;
+    background: var(--white);
+    border: 1.5px dashed var(--terracotta-soft);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 14px; font-weight: 700;
+    color: var(--terracotta);
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--line);
+  }
   .section-link { font-size: 11px; color: var(--terracotta); font-weight: 700; cursor: pointer; }
 
   /* ===== カード共通 ===== */
@@ -650,6 +663,12 @@
       </div>
     </div>
 
+    <button class="income-input-btn" onclick="goToIncomeSettings()">
+      <span style="font-size:16px">＋</span>
+      <span>収入を入力する</span>
+      <span style="font-size:12px;color:var(--terracotta-soft);margin-left:auto">設定 › 収入 →</span>
+    </button>
+
     <div class="section-title">
       <span class="label">項目別の内訳</span>
       <span class="section-link" onclick="goToPage('analysis')">分析を見る</span>
@@ -965,7 +984,10 @@ function getMonthSummary(ym){
   });
 
   const incomeActual = getIncomeActualForMonth(ym);
-  const income = Object.values(incomeActual).reduce((a,b)=>a+b, 0);
+  const income = Object.values(incomeActual).reduce((a,b) => {
+    const v = typeof b === 'object' ? (b.amount || 0) : (b || 0);
+    return a + v;
+  }, 0);
 
   const budgetTotal = AppState.categories.reduce((a,c)=>a+(c.budget||0), 0);
 
@@ -1007,6 +1029,11 @@ function setCardBillingForMonth(ym, cardName, amount){
 /* ============================================================
    画面遷移
    ============================================================ */
+function goToIncomeSettings(){
+  _settingsTab = 'income';
+  goToPage('settings');
+}
+
 function goToPage(page){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -1607,6 +1634,17 @@ function closeDrum(apply){
         renderSettingsTabContent();
       }
     }
+    if (_drumTargetField && _drumTargetField.startsWith('income-day|')) {
+      const [, ym, name] = _drumTargetField.split('|');
+      const stored = stor('kk_income_actual') || {};
+      if (!stored[ym]) stored[ym] = {};
+      const existing = stored[ym][name] || {};
+      const prev = typeof existing === 'object' ? existing : {amount: existing, day: null};
+      stored[ym][name] = {...prev, day: parseInt(val, 10)};
+      stor('kk_income_actual', stored);
+      if (currentUser) saveToFirestore();
+      renderSettingsTabContent();
+    }
     if (_drumTargetField === 'category' || _drumTargetField === 'method' || _drumTargetField === 'day') renderHistory();
   }
   const overlay = document.getElementById('drum-overlay');
@@ -1664,18 +1702,14 @@ function renderAnalysis(){
 
   let html = `
     <div class="kpi-grid">
-      <div class="kpi-card full">
-        <div class="kpi-label">月間収支バランス</div>
-        <div class="kpi-value ${summary.balance<0?'neg':''}">${fmtYenSigned(summary.balance).replace('+','')}</div>
+      <div class="kpi-card">
+        <div class="kpi-label">収入</div>
+        <div class="kpi-value" style="font-size:22px">${fmtYen(summary.income)}</div>
         ${balanceDelta !== null ? `<span class="kpi-delta ${balanceDelta>=0?'up':'down'}">先月比 ${fmtYenSigned(balanceDelta)}</span>` : ''}
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">収入</div>
-        <div class="kpi-value" style="font-size:19px">${fmtYen(summary.income)}</div>
-      </div>
-      <div class="kpi-card">
         <div class="kpi-label">支出</div>
-        <div class="kpi-value" style="font-size:19px">${fmtYen(summary.expense)}</div>
+        <div class="kpi-value" style="font-size:22px">${fmtYen(summary.expense)}</div>
       </div>
     </div>
 
@@ -2109,7 +2143,31 @@ function addCategory(group){
 }
 
 function renderIncomeSettings(){
-  let html = `<div class="settings-group-label">収入項目</div><div class="card settings-list">`;
+  const ym = AppState.currentMonth;
+  const actual = getIncomeActualForMonth(ym);
+
+  // ① 実際収入（先に表示）
+  let html = `<div class="settings-group-label">${monthLabel(ym)}の実際収入</div><div class="card settings-list">`;
+  AppState.incomeSources.forEach((s, idx) => {
+    const entry = actual[s.name] || {};
+    const amount = typeof entry === 'object' ? (entry.amount || 0) : entry;
+    const day = typeof entry === 'object' ? (entry.day || null) : null;
+    html += `
+      <div class="settings-row">
+        <div class="settings-row-top">
+          <span style="font-size:13.5px;font-weight:700;color:var(--ink)">${escapeHtml(s.name)}</span>
+        </div>
+        <div class="settings-row-bottom">
+          <button type="button" class="drum-select-btn small" style="flex:none;width:auto;min-width:60px" onclick="openIncomeDayDrum('${escapeJs(ym)}','${escapeJs(s.name)}')">${day ? day+'日' : '日付'}</button>
+          <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">実績</span>
+          <input type="number" class="settings-input-amt" value="${amount}" onchange="updateIncomeActualAmount('${escapeJs(ym)}','${escapeJs(s.name)}',this.value)">
+        </div>
+      </div>`;
+  });
+  html += `</div>`;
+
+  // ② 収入項目設定（後に表示）
+  html += `<div class="settings-group-label" style="margin-top:20px">収入項目の設定</div><div class="card settings-list">`;
   AppState.incomeSources.forEach((s, idx) => {
     html += `
       <div class="settings-row">
@@ -2125,23 +2183,28 @@ function renderIncomeSettings(){
   });
   html += `<button class="settings-add-btn" onclick="addIncomeSource()">＋ 収入項目を追加</button></div>`;
 
-  const ym = AppState.currentMonth;
-  const actual = getIncomeActualForMonth(ym);
-  html += `<div class="settings-group-label" style="margin-top:20px">${monthLabel(ym)}の実際収入</div><div class="card settings-list">`;
-  AppState.incomeSources.forEach(s => {
-    html += `
-      <div class="settings-row">
-        <div class="settings-row-top">
-          <span style="font-size:13.5px;font-weight:700;color:var(--ink)">${escapeHtml(s.name)}</span>
-        </div>
-        <div class="settings-row-bottom">
-          <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">実績</span>
-          <input type="number" class="settings-input-amt" value="${actual[s.name]||0}" onchange="updateIncomeActual('${escapeJs(s.name)}',this.value)">
-        </div>
-      </div>`;
-  });
-  html += `</div>`;
   return html;
+}
+
+function openIncomeDayDrum(ym, name){
+  const [y,m] = ym.split('-');
+  const daysInMonth = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const values = Array.from({length: daysInMonth}, (_, i) => String(i+1));
+  const actual = getIncomeActualForMonth(ym);
+  const entry = actual[name] || {};
+  const currentDay = typeof entry === 'object' ? (entry.day ? String(entry.day) : '1') : '1';
+  _drumTargetField = `income-day|${ym}|${name}`;
+  buildDrumDOM('入金日を選択', values, currentDay, v => v + '日');
+}
+
+function updateIncomeActualAmount(ym, name, value){
+  const stored = stor('kk_income_actual') || {};
+  if (!stored[ym]) stored[ym] = {};
+  const existing = stored[ym][name] || {};
+  const prev = typeof existing === 'object' ? existing : {amount: existing, day: null};
+  stored[ym][name] = {...prev, amount: parseFloat(value)||0};
+  stor('kk_income_actual', stored);
+  if (currentUser) saveToFirestore();
 }
 
 function updateIncomeField(idx, field, value){
@@ -2162,13 +2225,6 @@ function addIncomeSource(){
   AppState.incomeSources.push({name:'新しい収入項目', budget:0});
   saveLocalState();
   renderSettingsTabContent();
-}
-function updateIncomeActual(name, value){
-  const ym = AppState.currentMonth;
-  const actual = getIncomeActualForMonth(ym);
-  actual[name] = parseFloat(value) || 0;
-  setIncomeActualForMonth(ym, actual);
-  if (currentUser) saveToFirestore();
 }
 
 function renderMethodsSettings(){
@@ -2228,65 +2284,77 @@ function addMethod(){
   renderSettingsTabContent();
 }
 
+let _accountOpen = {};
+
 function renderAccountsSettings(){
   const totalBalance = AppState.accounts.reduce((a,acc)=>a+(acc.balance||0),0);
-  let html = `
-    <div class="settings-group-label">口座一覧</div>`;
+  let html = `<div class="settings-group-label">口座一覧</div>`;
 
   AppState.accounts.forEach((acc, idx) => {
     if (!acc.balanceHistory) acc.balanceHistory = [];
-    const history = acc.balanceHistory.slice(-12); // 直近12件
+    const isOpen = _accountOpen[idx] !== false; // デフォルト開
+    const history = acc.balanceHistory.slice(-12);
     const maxBal = Math.max(1, ...history.map(h => h.value), acc.balance || 0);
 
     html += `
-      <div class="card account-card">
-        <div class="account-card-top">
-          <input type="text" class="settings-input-name account-name-input" value="${escapeHtml(acc.name)}" onchange="updateAccountField(${idx},'name',this.value)" placeholder="口座名">
-          <button class="settings-del-btn" onclick="deleteAccount(${idx})">×</button>
-        </div>
-        <input type="text" class="account-memo-input" value="${escapeHtml(acc.memo||'')}" onchange="updateAccountField(${idx},'memo',this.value)" placeholder="メモ（何のための口座か）">
-
-        <div class="account-balance-row">
-          <div style="flex:1">
-            <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">残高を入力</label>
-            <input type="number" inputmode="numeric" id="acc-balance-input-${idx}" value="${acc.balance||0}" class="account-balance-input">
+      <div class="card account-card" style="padding:0;overflow:hidden;margin-bottom:10px">
+        <!-- 折りたたみヘッダー -->
+        <div class="account-accordion-header" onclick="toggleAccount(${idx})">
+          <div>
+            <div style="font-size:14px;font-weight:700">${escapeHtml(acc.name)}</div>
+            <div style="font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;color:var(--terracotta)">${fmtYen(acc.balance||0)}</div>
           </div>
-          <button class="submit-btn" style="width:auto;padding:11px 18px;margin-top:18px;font-size:13px" onclick="saveAccountBalance(${idx})">保存</button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="settings-del-btn" onclick="event.stopPropagation();deleteAccount(${idx})">×</button>
+            <span style="font-size:16px;color:var(--gray-muted);transition:transform 0.2s;${isOpen?'transform:rotate(180deg)':''}">▾</span>
+          </div>
         </div>
 
-        <div class="account-current-balance">
-          <span style="font-size:11px;color:var(--gray-muted)">現在の残高</span>
-          <span style="font-family:'Shippori Mincho',serif;font-size:19px;font-weight:700">${fmtYen(acc.balance||0)}</span>
-        </div>
+        <!-- 展開コンテンツ -->
+        <div class="account-accordion-body" style="display:${isOpen?'block':'none'}">
+          <input type="text" class="settings-input-name" style="border:1px solid var(--line);background:var(--cream);border-radius:8px;padding:7px 10px;margin-bottom:8px;width:100%" value="${escapeHtml(acc.name)}" onchange="updateAccountField(${idx},'name',this.value)" placeholder="口座名">
+          <input type="text" class="account-memo-input" value="${escapeHtml(acc.memo||'')}" onchange="updateAccountField(${idx},'memo',this.value)" placeholder="メモ（何のための口座か）">
 
-        ${history.length > 1 ? `
-          <div class="account-history-chart">
-            <div style="font-size:10.5px;color:var(--gray-muted);margin-bottom:8px">残高推移（直近${history.length}件の保存履歴）</div>
-            <div class="bar-chart bar-chart-labeled bar-chart-year">
-              ${history.map(h => {
-                const hgt = Math.max(4, Math.round((h.value / maxBal) * 70));
-                const d = new Date(h.savedAt);
-                return `<div class="bar-col">
-                  <span class="bar-value-label small">${fmtYenShort(h.value)}</span>
-                  <div class="bar-wrap"><div class="bar" style="height:${hgt}px;background:var(--blue-card)"></div></div>
-                  <span class="bar-month">${d.getMonth()+1}/${d.getDate()}</span>
-                </div>`;
-              }).join('')}
+          <div class="account-balance-row">
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">残高を入力</label>
+              <input type="number" inputmode="numeric" id="acc-balance-input-${idx}" value="${acc.balance||0}" class="account-balance-input">
             </div>
+            <button class="submit-btn" style="width:auto;padding:11px 18px;margin-top:18px;font-size:13px" onclick="saveAccountBalance(${idx})">保存</button>
           </div>
-        ` : `<div style="font-size:11px;color:var(--gray-muted);padding:10px 0 0">保存を重ねると残高推移グラフが表示されます</div>`}
+
+          ${history.length > 1 ? `
+            <div class="account-history-chart">
+              <div style="font-size:10.5px;color:var(--gray-muted);margin-bottom:8px">残高推移（直近${history.length}件）</div>
+              <div class="bar-chart bar-chart-labeled bar-chart-year">
+                ${history.map(h => {
+                  const hgt = Math.max(4, Math.round((h.value / maxBal) * 70));
+                  const d = new Date(h.savedAt);
+                  return `<div class="bar-col">
+                    <span class="bar-value-label small">${fmtYenShort(h.value)}</span>
+                    <div class="bar-wrap"><div class="bar" style="height:${hgt}px;background:var(--blue-card)"></div></div>
+                    <span class="bar-month">${d.getMonth()+1}/${d.getDate()}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+          ` : `<div style="font-size:11px;color:var(--gray-muted);padding:10px 0 4px">保存を重ねると残高推移グラフが表示されます</div>`}
+        </div>
       </div>`;
   });
 
   html += `<button class="settings-add-btn account-add-btn" onclick="addAccount()">＋ 口座を追加</button>`;
-
   html += `
     <div style="margin-top:16px;padding:16px;background:var(--white);border-radius:14px;box-shadow:0 2px 0 var(--line)">
-      <div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:6px">口座残高合計（入力値）</div>
+      <div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:6px">口座残高合計</div>
       <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700">${fmtYen(totalBalance)}</div>
-      <div style="font-size:11px;color:var(--gray-muted);margin-top:8px;line-height:1.6">※ 自動計算（記帳ベースの理論残高）との比較機能は次のステップで追加予定です</div>
     </div>`;
   return html;
+}
+
+function toggleAccount(idx){
+  _accountOpen[idx] = !(_accountOpen[idx] !== false);
+  renderSettingsTabContent();
 }
 function updateAccountField(idx, field, value){
   if (!AppState.accounts[idx]) return;
@@ -2302,12 +2370,124 @@ function saveAccountBalance(idx){
     showToast('正しい金額を入力してください');
     return;
   }
-  acc.balance = val;
+  openDateDrum3(idx, val);
+}
+
+/* 年月日3列ドラム（口座保存用） */
+let _drum3Scrolls = [];
+let _drum3AccIdx = null;
+let _drum3Value = null;
+
+function openDateDrum3(accIdx, value){
+  _drum3AccIdx = accIdx;
+  _drum3Value = value;
+
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth()+1;
+  const curD = now.getDate();
+
+  let existing = document.getElementById('drum3-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'drum-overlay show';
+  overlay.id = 'drum3-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const ITEM_H = 44;
+  const PAD = 2;
+
+  const years  = Array.from({length:10}, (_,i) => String(curY - 5 + i));
+  const months = Array.from({length:12}, (_,i) => String(i+1));
+  const days   = Array.from({length:31}, (_,i) => String(i+1));
+
+  const cols = [
+    {label:'年', values: years,  cur: String(curY),  fmt: v => v+'年'},
+    {label:'月', values: months, cur: String(curM),  fmt: v => v+'月'},
+    {label:'日', values: days,   cur: String(curD),  fmt: v => v+'日'},
+  ];
+
+  overlay.innerHTML = `
+    <div class="drum-sheet">
+      <div class="drum-toolbar">
+        <button class="drum-cancel" onclick="document.getElementById('drum3-overlay').remove()">キャンセル</button>
+        <span class="drum-title">保存日を選択</span>
+        <button class="drum-done" onclick="closeDrum3()">決定</button>
+      </div>
+      <div class="drum-body" id="drum3-body"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  _drum3Scrolls = [];
+  const body = document.getElementById('drum3-body');
+
+  cols.forEach(col => {
+    const colEl = document.createElement('div');
+    colEl.className = 'drum-col';
+    colEl.style.position = 'relative';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'drum-col-label';
+    lbl.textContent = col.label;
+
+    const scroll = document.createElement('div');
+    scroll.className = 'drum-scroll';
+
+    for (let p=0; p<PAD; p++) {
+      const pad = document.createElement('div');
+      pad.className = 'drum-item'; scroll.appendChild(pad);
+    }
+    col.values.forEach(v => {
+      const item = document.createElement('div');
+      item.className = 'drum-item';
+      item.textContent = col.fmt(v);
+      scroll.appendChild(item);
+    });
+    for (let p=0; p<PAD; p++) {
+      const pad = document.createElement('div');
+      pad.className = 'drum-item'; scroll.appendChild(pad);
+    }
+
+    const hl = document.createElement('div');
+    hl.className = 'drum-highlight';
+
+    colEl.appendChild(lbl); colEl.appendChild(scroll); colEl.appendChild(hl);
+    body.appendChild(colEl);
+
+    const curIdx = Math.max(0, col.values.indexOf(col.cur));
+    requestAnimationFrame(() => {
+      scroll.scrollTop = curIdx * ITEM_H;
+      updateDrumHighlight(scroll);
+    });
+    scroll.addEventListener('scroll', () => updateDrumHighlight(scroll), {passive:true});
+    _drum3Scrolls.push({scroll, values: col.values});
+  });
+}
+
+function closeDrum3(){
+  const ITEM_H = 44;
+  const picks = _drum3Scrolls.map(({scroll, values}) => {
+    const idx = Math.max(0, Math.min(values.length-1, Math.round(scroll.scrollTop / ITEM_H)));
+    return values[idx];
+  });
+  const [y, m, d] = picks;
+  const savedAt = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 12, 0, 0).getTime();
+
+  const overlay = document.getElementById('drum3-overlay');
+  if (overlay) overlay.remove();
+  _drum3Scrolls = [];
+
+  const acc = AppState.accounts[_drum3AccIdx];
+  if (!acc) return;
+  acc.balance = _drum3Value;
   if (!acc.balanceHistory) acc.balanceHistory = [];
-  acc.balanceHistory.push({ value: val, savedAt: Date.now() });
+  acc.balanceHistory.push({ value: _drum3Value, savedAt });
   saveLocalState();
-  showToast('残高を保存しました');
+  showToast(`${y}/${m}/${d} の残高を保存しました`);
   renderSettingsTabContent();
+  _drum3AccIdx = null;
+  _drum3Value = null;
 }
 function deleteAccount(idx){
   const target = AppState.accounts[idx];
@@ -2362,6 +2542,8 @@ function injectSettingsStyles(){
     .account-current-balance { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; padding: 10px 12px; background: var(--cream); border-radius: 10px; }
     .account-history-chart { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
     .account-add-btn { background: var(--white); border-radius: 14px; box-shadow: 0 2px 0 var(--line); padding: 13px; margin-bottom: 14px; }
+    .account-accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; }
+    .account-accordion-body { padding: 0 16px 16px; border-top: 1px dashed var(--line); }
   `;
   document.head.appendChild(style);
 }
