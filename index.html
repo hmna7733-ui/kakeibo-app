@@ -1,0 +1,2536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>家計手帖</title>
+<link rel="manifest" id="manifest-link">
+<meta name="theme-color" content="#C1683F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="家計手帖">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
+
+  :root {
+    --cream: #F7F2E9;
+    --cream-deep: #EFE6D4;
+    --ink: #3A332B;
+    --ink-soft: #756B5C;
+    --terracotta: #C1683F;
+    --terracotta-deep: #A8552F;
+    --terracotta-soft: #E8C4AC;
+    --sage: #7C8B6F;
+    --sage-deep: #5F6E52;
+    --sage-soft: #DDE3D3;
+    --gold: #B8923F;
+    --gold-soft: #E8D9B0;
+    --line: #D9CFBC;
+    --white: #FFFEFB;
+    --red-deficit: #B5483A;
+    --red-soft: #F0D4CD;
+    --blue-card: #6B85B0;
+    --purple-card: #9B82A8;
+    --gray-muted: #9B9180;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    overscroll-behavior-y: none;
+  }
+
+  body {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    background-image: radial-gradient(circle at 1px 1px, rgba(58,51,43,0.04) 1px, transparent 0);
+    background-size: 22px 22px;
+    min-height: 100vh;
+    padding-bottom: 100px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mincho { font-family: 'Shippori Mincho', serif; }
+
+  /* ===== ログイン画面 ===== */
+  #login-screen {
+    position: fixed; inset: 0;
+    background: linear-gradient(160deg, #3A332B 0%, #5A4A36 50%, #C1683F 130%);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+  #login-screen.show { display: flex; }
+  .login-logo {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .login-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 40px;
+    letter-spacing: 0.15em;
+  }
+  .auth-tabs {
+    display: flex;
+    background: rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 4px;
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 20px;
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+  }
+  .auth-tab.active { background: #fff; color: var(--ink); }
+  .auth-form { width: 100%; max-width: 320px; }
+  .auth-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: none;
+    font-size: 15px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    background: rgba(255,255,255,0.96);
+    color: var(--ink);
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+  .auth-input:focus { outline: 2px solid var(--terracotta); }
+  .auth-submit {
+    width: 100%;
+    padding: 15px;
+    border-radius: 14px;
+    border: none;
+    background: var(--terracotta);
+    color: #fff;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 10px;
+    box-shadow: 0 8px 20px rgba(193,104,63,0.35);
+  }
+  .auth-submit:disabled { opacity: 0.6; }
+  .auth-skip {
+    width: 100%;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.65);
+    border: 1px solid rgba(255,255,255,0.18);
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .auth-error {
+    color: #FFD4CC;
+    font-size: 13px;
+    margin-top: 14px;
+    text-align: center;
+    display: none;
+  }
+  .auth-note {
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+    margin-top: 24px;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  /* ===== ヘッダー ===== */
+  .app-header {
+    padding: 24px 20px 18px;
+    position: relative;
+  }
+  .app-header::after {
+    content: "";
+    position: absolute;
+    bottom: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--line) 0, var(--line) 6px, transparent 6px, transparent 12px);
+  }
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .header-title-wrap { display: flex; align-items: baseline; gap: 10px; }
+  .header-top h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .month-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--white);
+    padding: 4px 6px;
+    border-radius: 100px;
+    border: 1px solid var(--terracotta-soft);
+  }
+  .month-selector button {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--terracotta);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .month-selector span {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--terracotta);
+    min-width: 64px;
+    text-align: center;
+  }
+  .sync-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    background: var(--white);
+    color: var(--gray-muted);
+  }
+  .sync-badge.synced { color: var(--sage); }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-muted); }
+  .sync-badge.synced .sync-dot { background: var(--sage); }
+  .sync-badge.syncing .sync-dot { background: var(--gold); }
+
+  /* ===== コンテンツ共通 ===== */
+  .content { padding: 18px 20px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .section-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 22px 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-title .label { display: flex; align-items: center; gap: 8px; }
+  .section-title .label::before {
+    content: "";
+    width: 4px; height: 15px;
+    background: var(--terracotta);
+    border-radius: 2px;
+  }
+  .section-title:first-child { margin-top: 0; }
+  .section-link { font-size: 11px; color: var(--terracotta); font-weight: 700; cursor: pointer; }
+
+  /* ===== カード共通 ===== */
+  .card {
+    background: var(--white);
+    border-radius: 18px;
+    box-shadow: 0 2px 0 var(--line), 0 8px 20px rgba(58,51,43,0.05);
+  }
+
+  /* ===== 月次サマリー ===== */
+  .summary-card {
+    background: var(--white);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 2px 0 var(--line), 0 8px 24px rgba(58,51,43,0.06);
+    margin-bottom: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card::before {
+    content: "";
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: var(--terracotta-soft);
+    border-radius: 50%;
+    opacity: 0.4;
+  }
+  .summary-label { font-size: 12px; color: var(--gray-muted); margin-bottom: 6px; }
+  .summary-balance {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 34px;
+    font-weight: 700;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .summary-balance .yen { font-size: 17px; color: var(--terracotta); }
+  .summary-balance.minus { color: var(--red-deficit); }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-top: 1px dashed var(--line);
+    font-size: 13.5px;
+  }
+  .summary-row .label { color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+  .summary-row .value { font-weight: 700; }
+  .summary-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.income { background: var(--sage); }
+  .dot.expense { background: var(--terracotta); }
+
+  /* ===== カテゴリリスト ===== */
+  .category-list { padding: 4px 18px; }
+  .cat-item { padding: 14px 0; border-bottom: 1px solid var(--cream-deep); }
+  .cat-item:last-child { border-bottom: none; }
+  .cat-item-top { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 13.5px; gap: 8px; }
+  .cat-name { font-weight: 700; flex-shrink: 0; }
+  .cat-amount { font-variant-numeric: tabular-nums; text-align: right; }
+  .cat-amount .budget { color: var(--gray-muted); font-size: 11.5px; }
+  .cat-bar-track { height: 7px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
+  .cat-bar-fill { height: 100%; border-radius: 100px; background: var(--sage); transition: width 0.4s; }
+  .cat-bar-fill.over { background: var(--terracotta); }
+  .empty-hint { padding: 20px; text-align: center; font-size: 12.5px; color: var(--gray-muted); }
+
+  /* ===== ドラム式ピッカー ===== */
+  .drum-overlay {
+    position: fixed; inset: 0;
+    background: rgba(58,51,43,0.45);
+    z-index: 600;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .drum-overlay.show { display: flex; }
+  .drum-sheet {
+    width: 100%; max-width: 480px;
+    background: var(--cream);
+    border-radius: 22px 22px 0 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .drum-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 18px; border-bottom: 1px solid var(--line);
+  }
+  .drum-title { font-family: 'Shippori Mincho', serif; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .drum-done { font-size: 14px; font-weight: 700; color: var(--terracotta); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
+  .drum-cancel { font-size: 14px; color: var(--gray-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
+  .drum-body { display: flex; overflow: hidden; position: relative; }
+  .drum-col { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .drum-col-label { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--gray-muted); height: 26px; line-height: 26px; flex-shrink: 0; border-bottom: 1px solid var(--line); }
+  .drum-scroll {
+    overflow-y: scroll; height: 220px;
+    scroll-snap-type: y mandatory;
+    scroll-padding-top: 88px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .drum-scroll::-webkit-scrollbar { display: none; }
+  .drum-item {
+    height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 14.5px; font-weight: 500; color: var(--gray-muted);
+    scroll-snap-align: start; flex-shrink: 0;
+    transition: color .1s, font-size .1s;
+    user-select: none; padding: 0 8px; text-align: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+  .drum-item.selected { color: var(--ink); font-size: 17px; font-weight: 700; }
+  .drum-highlight {
+    position: absolute;
+    top: calc(26px + 88px);
+    left: 8px; right: 8px; height: 44px;
+    border-top: 1.5px solid var(--terracotta-soft);
+    border-bottom: 1.5px solid var(--terracotta-soft);
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .filter-trigger-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .filter-trigger-btn {
+    flex: 1; padding: 11px 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--white);
+    font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+    font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .filter-trigger-btn.set { border-color: var(--terracotta); color: var(--terracotta); background: var(--terracotta-soft); }
+  .filter-trigger-btn .ft-arrow { font-size: 10px; opacity: 0.6; }
+  .filter-clear-btn {
+    flex-shrink: 0; width: 38px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--white); color: var(--gray-muted); font-size: 14px; cursor: pointer;
+  }
+
+  /* ===== ボトムナビ ===== */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    border-top: 1px solid var(--line);
+    display: flex;
+    padding: 8px 0 calc(18px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1;
+    text-align: center;
+    font-size: 9.5px;
+    color: var(--gray-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    padding: 0 2px;
+  }
+  .nav-item.active { color: var(--terracotta); font-weight: 700; }
+  .nav-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+
+  /* ===== FAB ===== */
+  .fab {
+    position: fixed;
+    bottom: calc(82px + env(safe-area-inset-bottom)); right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--terracotta);
+    color: white;
+    border: none;
+    font-size: 26px;
+    box-shadow: 0 8px 20px rgba(193,104,63,0.4);
+    cursor: pointer;
+    z-index: 90;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== モーダル（入力フォーム） ===== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(58,51,43,0.45);
+    z-index: 500;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-sheet {
+    background: var(--cream);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 24px 24px 0 0;
+    padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease-out;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 36px; height: 4px; background: var(--line); border-radius: 100px; margin: 8px auto 16px; }
+  .modal-title { font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-close { font-size: 22px; color: var(--gray-muted); cursor: pointer; background: none; border: none; }
+
+  .form-field { margin-bottom: 16px; }
+  .form-field label { font-size: 12px; color: var(--gray-muted); display: block; margin-bottom: 7px; font-weight: 700; }
+  .form-field input, .form-field select {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--white);
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .form-field input:focus, .form-field select:focus { outline: 2px solid var(--terracotta-soft); border-color: var(--terracotta); }
+
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 9px 15px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    font-size: 13px;
+    background: var(--white);
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .chip.selected { background: var(--terracotta); border-color: var(--terracotta); color: white; font-weight: 700; }
+
+  .drum-select-btn {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--white);
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .drum-select-btn::after { content: '▾'; font-size: 11px; color: var(--gray-muted); }
+  .drum-select-btn.empty { color: var(--gray-muted); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 14px;
+    border: none;
+    background: var(--terracotta);
+    color: white;
+    font-family: inherit;
+    font-size: 15.5px;
+    font-weight: 700;
+    margin-top: 8px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(193,104,63,0.3);
+  }
+  .submit-btn:disabled { opacity: 0.5; }
+  .submit-btn.secondary {
+    background: var(--white);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    box-shadow: none;
+  }
+
+  /* ===== トースト ===== */
+  .toast {
+    position: fixed;
+    bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: #fff;
+    padding: 11px 22px;
+    border-radius: 100px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== 確認ダイアログ ===== */
+  .confirm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(58,51,43,0.5);
+    z-index: 1500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .confirm-overlay.show { display: flex; }
+  .confirm-sheet {
+    background: var(--white);
+    border-radius: 18px;
+    padding: 24px 22px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+  }
+  .confirm-message {
+    font-size: 14.5px;
+    color: var(--ink);
+    line-height: 1.7;
+    margin-bottom: 20px;
+    text-align: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+  .confirm-buttons { display: flex; gap: 10px; }
+  .confirm-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .confirm-btn.cancel { background: var(--cream-deep); color: var(--ink-soft); }
+  .confirm-btn.ok { background: var(--red-deficit); color: white; }
+
+  /* ===== ローディング ===== */
+  #app-loading {
+    position: fixed; inset: 0;
+    background: var(--cream);
+    z-index: 2000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .loading-logo { font-family: 'Shippori Mincho', serif; font-size: 24px; color: var(--terracotta); margin-bottom: 12px; }
+  .loading-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--cream-deep);
+    border-top-color: var(--terracotta);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="app-loading">
+  <div class="loading-logo">家計手帖</div>
+  <div class="loading-spinner"></div>
+</div>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="login-logo">家計手帖</div>
+  <div class="login-sub">KAKEIBO TECHO</div>
+
+  <div class="auth-tabs">
+    <button id="tab-login" class="auth-tab active" onclick="showAuthTab('login')">ログイン</button>
+    <button id="tab-signup" class="auth-tab" onclick="showAuthTab('signup')">新規登録</button>
+  </div>
+
+  <div class="auth-form">
+    <input id="auth-email" type="email" class="auth-input" placeholder="メールアドレス" autocomplete="email">
+    <input id="auth-password" type="password" class="auth-input" placeholder="パスワード（6文字以上）" autocomplete="current-password">
+    <button id="auth-submit-btn" class="auth-submit" onclick="submitAuth()">ログイン</button>
+    <button class="auth-skip" onclick="skipLogin()">このデバイスのみで使う（同期なし）</button>
+  </div>
+  <div id="login-error" class="auth-error"></div>
+  <div class="auth-note">メール＋パスワードで複数デバイス間・ご家族間でデータ共有できます</div>
+</div>
+
+<!-- ヘッダー -->
+<div class="app-header">
+  <div class="header-top">
+    <div class="header-title-wrap">
+      <h1 id="page-title">家計手帖</h1>
+    </div>
+    <button class="sync-badge offline" id="sync-badge" onclick="onSyncBadgeClick()">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">未連携</span>
+    </button>
+  </div>
+  <div class="month-selector" id="month-selector-wrap">
+    <button onclick="changeMonth(-1)">‹</button>
+    <span id="current-month-label">2026年6月</span>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+</div>
+
+<!-- ===== ホーム画面 ===== -->
+<div class="page active" id="page-home">
+  <div class="content">
+    <div class="summary-card">
+      <div class="summary-label">今月の収支</div>
+      <div class="summary-balance" id="home-balance">¥0</div>
+      <div class="summary-row">
+        <span class="label"><span class="dot income"></span>収入</span>
+        <span class="value" id="home-income">¥0</span>
+      </div>
+      <div class="summary-row">
+        <span class="label"><span class="dot expense"></span>支出</span>
+        <span class="value" id="home-expense">¥0</span>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span class="label">項目別の内訳</span>
+      <span class="section-link" onclick="goToPage('analysis')">分析を見る</span>
+    </div>
+    <div class="card category-list" id="home-category-list">
+      <div class="empty-hint">データがありません</div>
+    </div>
+
+    <div class="section-title">
+      <span class="label">カード請求の確認</span>
+      <span class="section-link" onclick="goToPage('cards')">カード管理</span>
+    </div>
+    <div class="card category-list" id="home-card-list">
+      <div class="empty-hint">データがありません</div>
+    </div>
+
+    <div class="section-title">
+      <span class="label">最近の記帳</span>
+    </div>
+    <div class="card category-list" id="home-recent-tx">
+      <div class="empty-hint">記帳がありません</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 分析画面 ===== -->
+<div class="page" id="page-analysis">
+  <div class="content" id="analysis-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
+<!-- ===== 履歴画面 ===== -->
+<div class="page" id="page-history">
+  <div class="content" id="history-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
+<!-- ===== カード画面 ===== -->
+<div class="page" id="page-cards">
+  <div class="content" id="cards-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
+<!-- ===== 設定画面 ===== -->
+<div class="page" id="page-settings">
+  <div class="content" id="settings-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab-add" onclick="openTxModal()">＋</button>
+
+<!-- ボトムナビ -->
+<div class="bottom-nav">
+  <button class="nav-item active" data-page="home" onclick="goToPage('home')">
+    <span class="nav-icon">🏠</span>ホーム
+  </button>
+  <button class="nav-item" data-page="history" onclick="goToPage('history')">
+    <span class="nav-icon">📋</span>履歴
+  </button>
+  <button class="nav-item" data-page="cards" onclick="goToPage('cards')">
+    <span class="nav-icon">💳</span>カード
+  </button>
+  <button class="nav-item" data-page="analysis" onclick="goToPage('analysis')">
+    <span class="nav-icon">📊</span>分析
+  </button>
+  <button class="nav-item" data-page="settings" onclick="goToPage('settings')">
+    <span class="nav-icon">⚙️</span>設定
+  </button>
+</div>
+
+<!-- 入力モーダル -->
+<div class="modal-overlay" id="tx-modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span id="tx-modal-title">記帳する</span>
+      <button class="modal-close" onclick="closeTxModal()">×</button>
+    </div>
+    <div class="form-field">
+      <label>日付</label>
+      <input type="date" id="tx-date">
+    </div>
+    <div class="form-field">
+      <label>金額</label>
+      <input type="number" id="tx-amount" inputmode="numeric" placeholder="0">
+    </div>
+    <div class="form-field">
+      <label>項目</label>
+      <button type="button" class="drum-select-btn" id="tx-category-trigger" onclick="openTxFieldDrum('category')">選択してください</button>
+    </div>
+    <div class="form-field">
+      <label>支払い方法</label>
+      <button type="button" class="drum-select-btn" id="tx-method-trigger" onclick="openTxFieldDrum('method')">選択してください</button>
+    </div>
+    <div class="form-field">
+      <label>メモ（任意）</label>
+      <input type="text" id="tx-memo" placeholder="メモ">
+    </div>
+    <button class="submit-btn" id="tx-submit-btn" onclick="submitTransaction()">記帳する</button>
+    <button class="submit-btn secondary" id="tx-delete-btn" style="display:none" onclick="deleteCurrentTransaction()">この記録を削除</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- カスタム確認ダイアログ（confirm()の代替） -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-message" id="confirm-message"></div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn cancel" id="confirm-cancel-btn">キャンセル</button>
+      <button class="confirm-btn ok" id="confirm-ok-btn">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBmUwQoZDjMrpYGpWWNt3tlhAHPvaqanpE",
+  authDomain: "kakeibo-app-64714.firebaseapp.com",
+  projectId: "kakeibo-app-64714",
+  storageBucket: "kakeibo-app-64714.firebasestorage.app",
+  messagingSenderId: "168591660868",
+  appId: "1:168591660868:web:d01442d9ab4351c918a911"
+};
+let firebaseApp, auth, db_fs, currentUser = null;
+let skipLoginMode = false;
+</script>
+
+<script>
+/* ============================================================
+   データモデル初期値（Excelの「目標予算」「原本」シートに準拠）
+   ============================================================ */
+const DEFAULT_CATEGORIES = [
+  {name:'食費', group:'変動費', budget:80000},
+  {name:'雑貨', group:'変動費', budget:15000},
+  {name:'医療', group:'変動費', budget:5000},
+  {name:'隼人', group:'変動費', budget:10000},
+  {name:'舞香', group:'変動費', budget:10000},
+  {name:'衣服　美容', group:'変動費', budget:10000},
+  {name:'娯楽　交際', group:'変動費', budget:10000},
+  {name:'交通', group:'変動費', budget:20000},
+  {name:'教育', group:'変動費', budget:10000},
+  {name:'居住費', group:'固定費', budget:73400},
+  {name:'水道', group:'固定費', budget:7500},
+  {name:'ガス', group:'固定費', budget:20000},
+  {name:'電気', group:'固定費', budget:15000},
+  {name:'通信費', group:'固定費', budget:45000},
+  {name:'車', group:'固定費', budget:0},
+  {name:'貯金', group:'貯蓄返済', budget:64000},
+  {name:'七海貯金', group:'貯蓄返済', budget:10000},
+  {name:'結桜貯金', group:'貯蓄返済', budget:10000},
+  {name:'返済', group:'貯蓄返済', budget:36000},
+  {name:'建て替え', group:'貯蓄返済', budget:0},
+  {name:'車検', group:'貯蓄返済', budget:5000},
+  {name:'更新費', group:'貯蓄返済', budget:5000},
+  {name:'NISA', group:'投資保険', budget:0},
+  {name:'iDeCo', group:'投資保険', budget:0},
+  {name:'株式', group:'投資保険', budget:0},
+  {name:'外貨', group:'投資保険', budget:0},
+  {name:'学資保険', group:'投資保険', budget:19120},
+  {name:'生命保険', group:'投資保険', budget:0},
+  {name:'国保', group:'変動費', budget:1500},
+];
+
+const DEFAULT_INCOME_SOURCES = [
+  {name:'隼人', budget:350000},
+  {name:'舞香', budget:130000},
+  {name:'ボーナス', budget:0},
+  {name:'投資利益', budget:0},
+];
+
+const DEFAULT_PAYMENT_METHODS = [
+  {name:'楽天カード', isCard:true, color:'#C1683F'},
+  {name:'オリコカード', isCard:true, color:'#6B85B0'},
+  {name:'イオンカード', isCard:true, color:'#7C8B6F'},
+  {name:'ペイペイカード', isCard:true, color:'#B5483A'},
+  {name:'auPAYカード', isCard:true, color:'#9B82A8'},
+  {name:'引き落とし', isCard:false, color:'#9B9180'},
+  {name:'現金', isCard:false, color:'#B8923F'},
+];
+
+const DEFAULT_ACCOUNTS = [
+  {name:'七海ゆうちょ', balance:509524, memo:'', balanceHistory:[]},
+  {name:'ゆらゆうちょ', balance:326207, memo:'', balanceHistory:[]},
+  {name:'舞香愛知銀行', balance:24467, memo:'', balanceHistory:[]},
+  {name:'隼人ゆうちょ', balance:26608, memo:'', balanceHistory:[]},
+  {name:'まいかゆうちょ', balance:0, memo:'', balanceHistory:[]},
+  {name:'ゆらUFJ', balance:150000, memo:'', balanceHistory:[]},
+];
+
+/* 過去データ（2026年1〜5月の実取引・カード請求実績・収入実績） */
+const HISTORICAL_DATA = {"2026-01":{"transactions":[{"day":2,"amount":4896,"category":"食費","method":"ペイペイカード"},{"day":3,"amount":4161,"category":"衣服　美容","method":"ペイペイカード"},{"day":3,"amount":740,"category":"舞香","method":"ペイペイカード"},{"day":4,"amount":4294,"category":"食費","method":"ペイペイカード"},{"day":4,"amount":969,"category":"食費","method":"ペイペイカード"},{"day":6,"amount":550,"category":"娯楽　交際","method":"ペイペイカード"},{"day":7,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":7,"amount":1417,"category":"食費","method":"ペイペイカード"},{"day":8,"amount":4600,"category":"食費","method":"ペイペイカード"},{"day":10,"amount":1207,"category":"食費","method":"ペイペイカード"},{"day":12,"amount":1204,"category":"雑貨","method":"ペイペイカード"},{"day":12,"amount":2306,"category":"衣服　美容","method":"ペイペイカード"},{"day":12,"amount":2049,"category":"建て替え","method":"ペイペイカード"},{"day":13,"amount":2190,"category":"食費","method":"ペイペイカード"},{"day":15,"amount":3345,"category":"食費","method":"ペイペイカード"},{"day":16,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":16,"amount":16182,"category":"舞香","method":"ペイペイカード"},{"day":17,"amount":3687,"category":"食費","method":"ペイペイカード"},{"day":18,"amount":2513,"category":"雑貨","method":"ペイペイカード"},{"day":19,"amount":206,"category":"舞香","method":"ペイペイカード"},{"day":19,"amount":77800,"category":"建て替え","method":"ペイペイカード"},{"day":19,"amount":3000,"category":"建て替え","method":"ペイペイカード"},{"day":19,"amount":1530,"category":"食費","method":"ペイペイカード"},{"day":19,"amount":4247,"category":"通信費","method":"ペイペイカード"},{"day":21,"amount":2594,"category":"舞香","method":"ペイペイカード"},{"day":22,"amount":945,"category":"食費","method":"ペイペイカード"},{"day":22,"amount":2108,"category":"雑貨","method":"ペイペイカード"},{"day":22,"amount":2448,"category":"衣服　美容","method":"ペイペイカード"},{"day":22,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":26,"amount":1397,"category":"通信費","method":"ペイペイカード"},{"day":29,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":30,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":5,"amount":36000,"category":"返済","method":"現金"},{"day":31,"amount":28480,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":5266,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":4531,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":972,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":7769,"category":"電気","method":"ペイペイカード"},{"day":22,"amount":27841,"category":"ガス","method":"イオンカード"},{"day":26,"amount":1208,"category":"雑貨","method":"イオンカード"},{"day":26,"amount":17781,"category":"水道","method":"イオンカード"},{"day":3,"amount":7131,"category":"食費","method":"オリコカード"},{"day":3,"amount":2050,"category":"交通","method":"オリコカード"},{"day":14,"amount":2869,"category":"交通","method":"オリコカード"},{"day":22,"amount":2781,"category":"交通","method":"オリコカード"},{"day":3,"amount":3076,"category":"食費","method":"楽天カード"},{"day":5,"amount":2290,"category":"通信費","method":"楽天カード"},{"day":5,"amount":306,"category":"通信費","method":"楽天カード"},{"day":10,"amount":1690,"category":"通信費","method":"楽天カード"},{"day":12,"amount":1088,"category":"雑貨","method":"楽天カード"},{"day":14,"amount":2900,"category":"食費","method":"楽天カード"},{"day":19,"amount":1685,"category":"食費","method":"楽天カード"},{"day":22,"amount":1730,"category":"食費","method":"楽天カード"},{"day":31,"amount":1038,"category":"舞香","method":"楽天カード"},{"day":31,"amount":1210,"category":"雑貨","method":"楽天カード"},{"day":31,"amount":1000,"category":"雑貨","method":"楽天カード"},{"day":31,"amount":4000,"category":"交通","method":"楽天カード"},{"day":31,"amount":10000,"category":"七海","method":"現金"},{"day":31,"amount":10000,"category":"結桜","method":"現金"},{"day":31,"amount":64000,"category":"貯金","method":"現金"},{"day":null,"amount":28425,"category":"食費","method":"現金"},{"day":31,"amount":5000,"category":"車検","method":"現金"},{"day":null,"amount":5000,"category":"更新費","method":"現金"},{"day":null,"amount":383,"category":"舞香","method":"現金"},{"day":5,"amount":5500,"category":"教育","method":"引き落とし"},{"day":5,"amount":1110,"category":"教育","method":"引き落とし"},{"day":null,"amount":20000,"category":"七海","method":"引き落とし"},{"day":27,"amount":19120,"category":"学資保険","method":"引き落とし"},{"day":27,"amount":73400,"category":"居住費","method":"引き落とし"}],"card_billing_actual":{"楽天カード":22013,"オリコカード":14831,"イオンカード":46830,"ペイペイカード":241546},"income_actual":{"隼人":330000,"舞香":180000},"tx_count":69},"2026-02":{"transactions":[{"day":1,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":1,"amount":3168,"category":"食費","method":"ペイペイカード"},{"day":1,"amount":2859,"category":"交通","method":"オリコカード"},{"day":1,"amount":2909,"category":"食費","method":"楽天カード"},{"day":1,"amount":2024,"category":"食費","method":"ペイペイカード"},{"day":2,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":3,"amount":3086,"category":"食費","method":"楽天カード"},{"day":4,"amount":238,"category":"食費","method":"ペイペイカード"},{"day":6,"amount":6918,"category":"舞香","method":"ペイペイカード"},{"day":7,"amount":4278,"category":"衣服　美容","method":"ペイペイカード"},{"day":7,"amount":3080,"category":"衣服　美容","method":"ペイペイカード"},{"day":7,"amount":1216,"category":"雑貨","method":"ペイペイカード"},{"day":7,"amount":2310,"category":"食費","method":"ペイペイカード"},{"day":7,"amount":5032,"category":"食費","method":"ペイペイカード"},{"day":7,"amount":25980,"category":"娯楽　交際","method":"楽天カード"},{"day":8,"amount":5712,"category":"食費","method":"現金"},{"day":9,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":9,"amount":2470,"category":"食費","method":"現金"},{"day":9,"amount":863,"category":"食費","method":"ペイペイカード"},{"day":10,"amount":1830,"category":"食費","method":"ペイペイカード"},{"day":11,"amount":3998,"category":"食費","method":"楽天カード"},{"day":11,"amount":3120,"category":"交通","method":"オリコカード"},{"day":12,"amount":5859,"category":"雑貨","method":"ペイペイカード"},{"day":12,"amount":699,"category":"食費","method":"ペイペイカード"},{"day":12,"amount":398,"category":"雑貨","method":"楽天カード"},{"day":13,"amount":1530,"category":"食費","method":"ペイペイカード"},{"day":14,"amount":570,"category":"食費","method":"現金"},{"day":14,"amount":5232,"category":"舞香","method":"ペイペイカード"},{"day":14,"amount":8280,"category":"食費","method":"現金"},{"day":14,"amount":258,"category":"雑貨","method":"現金"},{"day":15,"amount":34,"category":"舞香","method":"ペイペイカード"},{"day":15,"amount":2600,"category":"食費","method":"イオンカード"},{"day":15,"amount":6300,"category":"衣服　美容","method":"楽天カード"},{"day":14,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":18,"amount":13000,"category":"隼人","method":"ペイペイカード"},{"day":19,"amount":1638,"category":"衣服　美容","method":"ペイペイカード"},{"day":19,"amount":5619,"category":"食費","method":"楽天カード"},{"day":18,"amount":3279,"category":"交通","method":"オリコカード"},{"day":21,"amount":686,"category":"雑貨","method":"楽天カード"},{"day":21,"amount":3132,"category":"舞香","method":"ペイペイカード"},{"day":21,"amount":2149,"category":"雑貨","method":"ペイペイカード"},{"day":22,"amount":1757,"category":"食費","method":"現金"},{"day":23,"amount":8375,"category":"食費","method":"現金"},{"day":24,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":26,"amount":1397,"category":"通信費","method":"ペイペイカード"},{"day":26,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":26,"amount":4246,"category":"通信費","method":"ペイペイカード"},{"day":27,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":27,"amount":2990,"category":"交通","method":"オリコカード"},{"day":15,"amount":3900,"category":"通信費","method":"楽天カード"},{"day":10,"amount":1690,"category":"通信費","method":"楽天カード"},{"day":4,"amount":2290,"category":"通信費","method":"楽天カード"},{"day":19,"amount":28083,"category":"ガス","method":"イオンカード"},{"day":31,"amount":9476,"category":"電気","method":"ペイペイカード"},{"day":31,"amount":5264,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":4462,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":4052,"category":"通信費","method":"ペイペイカード"},{"day":31,"amount":971,"category":"通信費","method":"ペイペイカード"},{"day":6,"amount":550,"category":"通信費","method":"ペイペイカード"},{"day":16,"amount":4096,"category":"食費","method":"ペイペイカード"},{"day":17,"amount":1133,"category":"食費","method":"ペイペイカード"},{"day":20,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":21,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":5,"amount":5500,"category":"教育","method":"引き落とし"},{"day":27,"amount":19120,"category":"学資保険","method":"引き落とし"},{"day":27,"amount":73400,"category":"居住費","method":"引き落とし"},{"day":5,"amount":36000,"category":"返済","method":"現金"}],"card_billing_actual":{"楽天カード":56974,"オリコカード":12248,"イオンカード":30683,"ペイペイカード":191378},"income_actual":{"隼人":420000,"舞香":130000},"tx_count":67},"2026-03":{"transactions":[{"day":1,"amount":6815,"category":"食費","method":"現金"},{"day":1,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":1,"amount":3618,"category":"衣服　美容","method":"ペイペイカード"},{"day":3,"amount":3139,"category":"食費","method":"ペイペイカード"},{"day":4,"amount":2093,"category":"食費","method":"ペイペイカード"},{"day":3,"amount":768,"category":"食費","method":"現金"},{"day":3,"amount":3000,"category":"交通","method":"楽天カード"},{"day":2,"amount":8230,"category":"医療","method":"楽天カード"},{"day":2,"amount":2220,"category":"食費","method":"楽天カード"},{"day":5,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":5,"amount":9102,"category":"舞香","method":"ペイペイカード"},{"day":6,"amount":550,"category":"通信費","method":"ペイペイカード"},{"day":6,"amount":5384,"category":"食費","method":"ペイペイカード"},{"day":5,"amount":5131,"category":"食費","method":"現金"},{"day":6,"amount":1271,"category":"食費","method":"現金"},{"day":7,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":8,"amount":3590,"category":"交通","method":"オリコカード"},{"day":8,"amount":703,"category":"雑貨","method":"ペイペイカード"},{"day":8,"amount":1100,"category":"衣服　美容","method":"ペイペイカード"},{"day":8,"amount":1869,"category":"舞香","method":"ペイペイカード"},{"day":9,"amount":5410,"category":"食費","method":"楽天カード"},{"day":10,"amount":8966,"category":"食費","method":"現金"},{"day":11,"amount":15375,"category":"隼人","method":"ペイペイカード"},{"day":11,"amount":5125,"category":"隼人","method":"ペイペイカード"},{"day":12,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":12,"amount":3785,"category":"食費","method":"ペイペイカード"},{"day":12,"amount":359,"category":"雑貨","method":"ペイペイカード"},{"day":13,"amount":303,"category":"舞香","method":"ペイペイカード"},{"day":13,"amount":749,"category":"隼人","method":"ペイペイカード"},{"day":13,"amount":649,"category":"食費","method":"ペイペイカード"},{"day":14,"amount":4330,"category":"食費","method":"現金"},{"day":15,"amount":5783,"category":"食費","method":"楽天カード"},{"day":15,"amount":5234,"category":"食費","method":"ペイペイカード"},{"day":16,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":16,"amount":816,"category":"食費","method":"イオンカード"},{"day":17,"amount":3859,"category":"交通","method":"オリコカード"},{"day":19,"amount":6268,"category":"食費","method":"現金"},{"day":19,"amount":10250,"category":"隼人","method":"ペイペイカード"},{"day":22,"amount":1897,"category":"食費","method":"ペイペイカード"},{"day":23,"amount":4246,"category":"通信費","method":"ペイペイカード"},{"day":23,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":27,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":28,"amount":3103,"category":"食費","method":"ペイペイカード"},{"day":26,"amount":3675,"category":"交通","method":"オリコカード"},{"day":24,"amount":28869,"category":"ガス","method":"イオンカード"},{"day":26,"amount":19250,"category":"水道","method":"イオンカード"},{"day":7,"amount":56000,"category":"貯金","method":"楽天カード"},{"day":9,"amount":14440,"category":"隼人","method":"楽天カード"},{"day":4,"amount":2290,"category":"通信費","method":"楽天カード"},{"day":6,"amount":306,"category":"通信費","method":"楽天カード"},{"day":10,"amount":1690,"category":"通信費","method":"楽天カード"},{"day":28,"amount":17230,"category":"電気","method":"ペイペイカード"},{"day":28,"amount":5264,"category":"通信費","method":"ペイペイカード"},{"day":28,"amount":4132,"category":"通信費","method":"ペイペイカード"},{"day":28,"amount":4052,"category":"通信費","method":"ペイペイカード"},{"day":28,"amount":971,"category":"通信費","method":"ペイペイカード"},{"day":27,"amount":73400,"category":"居住費","method":"引き落とし"},{"day":2,"amount":18700,"category":"教育","method":"引き落とし"},{"day":27,"amount":19120,"category":"学資保険","method":"引き落とし"}],"card_billing_actual":{"楽天カード":99369,"オリコカード":11124,"イオンカード":53969,"ペイペイカード":181032,"引き落とし":98020},"income_actual":{"隼人":350000,"舞香":139000,"投資利益":0},"tx_count":59},"2026-04":{"transactions":[{"day":1,"amount":4856,"category":"舞香","method":"ペイペイカード"},{"day":2,"amount":3417,"category":"食費","method":"ペイペイカード"},{"day":3,"amount":1460,"category":"衣服　美容","method":"ペイペイカード"},{"day":4,"amount":6999,"category":"衣服　美容","method":"ペイペイカード"},{"day":4,"amount":4860,"category":"食費","method":"ペイペイカード"},{"day":5,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":5,"amount":222,"category":"食費","method":"ペイペイカード"},{"day":5,"amount":6391,"category":"食費","method":"ペイペイカード"},{"day":6,"amount":971,"category":"食費","method":"ペイペイカード"},{"day":6,"amount":171,"category":"食費","method":"ペイペイカード"},{"day":6,"amount":4040,"category":"食費","method":"ペイペイカード"},{"day":7,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":10,"amount":15000,"category":"隼人","method":"ペイペイカード"},{"day":11,"amount":925,"category":"衣服　美容","method":"ペイペイカード"},{"day":12,"amount":39,"category":"雑貨","method":"ペイペイカード"},{"day":12,"amount":7960,"category":"衣服　美容","method":"ペイペイカード"},{"day":12,"amount":828,"category":"食費","method":"ペイペイカード"},{"day":12,"amount":3959,"category":"食費","method":"ペイペイカード"},{"day":17,"amount":4362,"category":"食費","method":"ペイペイカード"},{"day":18,"amount":11516,"category":"雑貨","method":"ペイペイカード"},{"day":18,"amount":178,"category":"食費","method":"ペイペイカード"},{"day":18,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":19,"amount":3894,"category":"雑貨","method":"ペイペイカード"},{"day":20,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":22,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":22,"amount":2288,"category":"食費","method":"ペイペイカード"},{"day":22,"amount":1683,"category":"雑貨","method":"ペイペイカード"},{"day":24,"amount":2235,"category":"食費","method":"ペイペイカード"},{"day":26,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":26,"amount":4248,"category":"通信費","method":"ペイペイカード"},{"day":30,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":30,"amount":1918,"category":"食費","method":"楽天カード"},{"day":1,"amount":6325,"category":"食費","method":"楽天カード"},{"day":4,"amount":2290,"category":"通信費","method":"楽天カード"},{"day":5,"amount":306,"category":"通信費","method":"楽天カード"},{"day":6,"amount":3712,"category":"交通","method":"楽天カード"},{"day":7,"amount":6474,"category":"食費","method":"楽天カード"},{"day":9,"amount":6000,"category":"舞香","method":"楽天カード"},{"day":10,"amount":1690,"category":"通信費","method":"楽天カード"},{"day":13,"amount":5745,"category":"食費","method":"楽天カード"},{"day":15,"amount":3900,"category":"通信費","method":"楽天カード"},{"day":16,"amount":256,"category":"医療","method":"楽天カード"},{"day":18,"amount":3637,"category":"通信費","method":"楽天カード"},{"day":19,"amount":1410,"category":"舞香","method":"楽天カード"},{"day":20,"amount":5695,"category":"食費","method":"楽天カード"},{"day":22,"amount":4345,"category":"隼人","method":"楽天カード"},{"day":22,"amount":5475,"category":"雑貨","method":"楽天カード"},{"day":22,"amount":5340,"category":"食費","method":"楽天カード"},{"day":22,"amount":15067,"category":"通信費","method":"楽天カード"},{"day":26,"amount":1730,"category":"雑貨","method":"楽天カード"},{"day":26,"amount":4947,"category":"食費","method":"楽天カード"},{"day":27,"amount":500,"category":"教育","method":"楽天カード"},{"day":5,"amount":2730,"category":"交通","method":"オリコカード"},{"day":7,"amount":3294,"category":"交通","method":"オリコカード"},{"day":20,"amount":3550,"category":"交通","method":"オリコカード"},{"day":5,"amount":15070,"category":"交通","method":"イオンカード"},{"day":22,"amount":26086,"category":"ガス","method":"イオンカード"},{"day":27,"amount":73400,"category":"居住費","method":"引き落とし"},{"day":30,"amount":1500,"category":"国保","method":"引き落とし"},{"day":27,"amount":19120,"category":"学資保険","method":"引き落とし"},{"day":1,"amount":5500,"category":"教育","method":"引き落とし"},{"day":15,"amount":16000,"category":"教育","method":"引き落とし"},{"day":23,"amount":7189,"category":"食費","method":"現金"},{"day":8,"amount":6548,"category":"食費","method":"現金"},{"day":5,"amount":36000,"category":"返済","method":"現金"},{"day":null,"amount":2080,"category":"食費","method":"イオンカード"},{"day":null,"amount":2600,"category":"娯楽　交際","method":"イオンカード"},{"day":null,"amount":13845,"category":"電気","method":"ペイペイカード"},{"day":null,"amount":14718,"category":"通信費","method":"ペイペイカード"},{"day":null,"amount":1822,"category":"隼人","method":"楽天カード"},{"day":null,"amount":1220,"category":"食費","method":"楽天カード"},{"day":null,"amount":20535,"category":"通信費","method":"au"}],"card_billing_actual":{"楽天カード":89804,"オリコカード":9574,"イオンカード":45836,"ペイペイカード":191065,"引き落とし":115520,"現金":49737},"income_actual":{"隼人":0,"舞香":131900},"tx_count":72},"2026-05":{"transactions":[{"day":3,"amount":417,"category":"雑貨","method":"ペイペイカード"},{"day":4,"amount":214,"category":"雑貨","method":"ペイペイカード"},{"day":4,"amount":1782,"category":"雑貨","method":"ペイペイカード"},{"day":4,"amount":440,"category":"雑貨","method":"ペイペイカード"},{"day":4,"amount":2933,"category":"食費","method":"ペイペイカード"},{"day":4,"amount":3280,"category":"隼人","method":"ペイペイカード"},{"day":6,"amount":20000,"category":"隼人","method":"ペイペイカード"},{"day":7,"amount":587,"category":"雑貨","method":"ペイペイカード"},{"day":7,"amount":11000,"category":"衣服　美容","method":"ペイペイカード"},{"day":7,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":8,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":9,"amount":18,"category":"舞香","method":"ペイペイカード"},{"day":9,"amount":2938,"category":"食費","method":"ペイペイカード"},{"day":10,"amount":2000,"category":"七海","method":"ペイペイカード"},{"day":10,"amount":962,"category":"食費","method":"ペイペイカード"},{"day":11,"amount":10000,"category":"隼人","method":"ペイペイカード"},{"day":14,"amount":5000,"category":"隼人","method":"ペイペイカード"},{"day":14,"amount":671,"category":"食費","method":"ペイペイカード"},{"day":15,"amount":1810,"category":"食費","method":"ペイペイカード"},{"day":15,"amount":2152,"category":"食費","method":"ペイペイカード"},{"day":16,"amount":5000,"category":"隼人","method":"ペイペイカード"},{"day":17,"amount":2668,"category":"娯楽　交際","method":"ペイペイカード"},{"day":18,"amount":2909,"category":"食費","method":"ペイペイカード"},{"day":19,"amount":1000,"category":"七海","method":"ペイペイカード"},{"day":19,"amount":1754,"category":"雑貨","method":"ペイペイカード"},{"day":19,"amount":8000,"category":"隼人","method":"ペイペイカード"},{"day":22,"amount":1484,"category":"雑貨","method":"ペイペイカード"},{"day":23,"amount":13530,"category":"舞香","method":"ペイペイカード"},{"day":24,"amount":8000,"category":"隼人","method":"ペイペイカード"},{"day":26,"amount":8635,"category":"通信費","method":"ペイペイカード"},{"day":26,"amount":4246,"category":"通信費","method":"ペイペイカード"},{"day":28,"amount":3381,"category":"食費","method":"ペイペイカード"},{"day":30,"amount":3000,"category":"隼人","method":"ペイペイカード"},{"day":1,"amount":7816,"category":"食費","method":"楽天カード"},{"day":2,"amount":677,"category":"食費","method":"楽天カード"},{"day":3,"amount":38500,"category":"結桜","method":"楽天カード"},{"day":4,"amount":7621,"category":"隼人","method":"楽天カード"},{"day":4,"amount":2290,"category":"通信費","method":"楽天カード"},{"day":5,"amount":10550,"category":"通信費","method":"楽天カード"},{"day":5,"amount":306,"category":"通信費","method":"楽天カード"},{"day":7,"amount":850,"category":"食費","method":"楽天カード"},{"day":7,"amount":2280,"category":"食費","method":"楽天カード"},{"day":9,"amount":4235,"category":"隼人","method":"楽天カード"},{"day":9,"amount":5940,"category":"隼人","method":"楽天カード"},{"day":10,"amount":1860,"category":"通信費","method":"楽天カード"},{"day":11,"amount":980,"category":"雑貨","method":"楽天カード"},{"day":12,"amount":4134,"category":"食費","method":"楽天カード"},{"day":17,"amount":150,"category":"通信費","method":"楽天カード"},{"day":21,"amount":8557,"category":"食費","method":"楽天カード"},{"day":22,"amount":1000,"category":"教育","method":"楽天カード"},{"day":22,"amount":3633,"category":"通信費","method":"楽天カード"},{"day":23,"amount":7800,"category":"医療","method":"楽天カード"},{"day":26,"amount":9920,"category":"雑貨","method":"楽天カード"},{"day":28,"amount":550,"category":"通信費","method":"楽天カード"},{"day":5,"amount":3612,"category":"交通","method":"オリコカード"},{"day":10,"amount":3598,"category":"交通","method":"オリコカード"},{"day":11,"amount":10560,"category":"交通","method":"オリコカード"},{"day":17,"amount":19077,"category":"食費","method":"オリコカード"},{"day":23,"amount":3410,"category":"交通","method":"オリコカード"},{"day":22,"amount":22341,"category":"ガス","method":"イオンカード"},{"day":26,"amount":19250,"category":"水道","method":"イオンカード"},{"day":null,"amount":8012,"category":"通信費","method":"au PAYカード"},{"day":27,"amount":73400,"category":"居住費","method":"引き落とし"},{"day":30,"amount":1500,"category":"国保","method":"引き落とし"},{"day":27,"amount":19120,"category":"学資保険","method":"引き落とし"},{"day":1,"amount":5500,"category":"教育","method":"引き落とし"},{"day":2,"amount":11465,"category":"食費","method":"現金"},{"day":5,"amount":6119,"category":"食費","method":"現金"}],"card_billing_actual":{},"income_actual":{"隼人":0,"舞香":157300},"tx_count":68}};
+
+/* ============================================================
+   アプリ状態管理
+   ============================================================ */
+const AppState = {
+  categories: [],
+  incomeSources: [],
+  paymentMethods: [],
+  accounts: [],
+  transactions: [],
+  cardBillings: {},
+  currentMonth: null,
+  initialized: false,
+  editingTxId: null,
+};
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayYM(){ const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`; }
+function todayYMD(){ const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function fmtYen(n){ return '¥' + Math.round(n).toLocaleString(); }
+function fmtYenSigned(n){ const r = Math.round(n); return (r>=0?'+':'') + '¥' + r.toLocaleString(); }
+function monthLabel(ym){ const [y,m] = ym.split('-'); return `${y}年${parseInt(m)}月`; }
+
+function stor(k,v){
+  try {
+    if (v === undefined) return JSON.parse(localStorage.getItem(k) || 'null');
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch(e) { return null; }
+}
+
+function loadLocalState(){
+  AppState.categories = stor('kk_categories') || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  AppState.incomeSources = stor('kk_income_sources') || JSON.parse(JSON.stringify(DEFAULT_INCOME_SOURCES));
+  AppState.paymentMethods = stor('kk_payment_methods') || JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
+  AppState.accounts = stor('kk_accounts') || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  AppState.transactions = stor('kk_transactions');
+  AppState.cardBillings = stor('kk_card_billings') || {};
+
+  if (AppState.transactions === null) {
+    AppState.transactions = buildTransactionsFromHistorical();
+    AppState.cardBillings = buildCardBillingsFromHistorical();
+    saveLocalState();
+  }
+}
+
+function saveLocalState(){
+  stor('kk_categories', AppState.categories);
+  stor('kk_income_sources', AppState.incomeSources);
+  stor('kk_payment_methods', AppState.paymentMethods);
+  stor('kk_accounts', AppState.accounts);
+  stor('kk_transactions', AppState.transactions);
+  stor('kk_card_billings', AppState.cardBillings);
+  if (currentUser) saveToFirestore();
+}
+
+let _txIdCounter = 1;
+function nextTxId(){
+  return Date.now().toString(36) + '_' + (_txIdCounter++);
+}
+
+function buildTransactionsFromHistorical(){
+  const txs = [];
+  Object.keys(HISTORICAL_DATA).forEach(ym => {
+    const [y,m] = ym.split('-');
+    const monthData = HISTORICAL_DATA[ym];
+    monthData.transactions.forEach(t => {
+      const day = (t.day && t.day >= 1 && t.day <= 31) ? t.day : 1;
+      txs.push({
+        id: nextTxId(),
+        date: `${y}-${m}-${pad2(day)}`,
+        amount: t.amount,
+        category: t.category,
+        method: t.method,
+        memo: '',
+        createdAt: Date.now()
+      });
+    });
+  });
+  return txs;
+}
+
+function buildCardBillingsFromHistorical(){
+  const cb = {};
+  Object.keys(HISTORICAL_DATA).forEach(ym => {
+    const billing = HISTORICAL_DATA[ym].card_billing_actual;
+    if (billing && Object.keys(billing).length > 0) {
+      cb[ym] = billing;
+    }
+  });
+  return cb;
+}
+
+/* ============================================================
+   集計ロジック
+   ============================================================ */
+function getTransactionsForMonth(ym){
+  return AppState.transactions.filter(t => t.date.startsWith(ym));
+}
+
+function isIncomeCategory(catName){
+  return AppState.incomeSources.some(s => s.name === catName);
+}
+
+function getMonthSummary(ym){
+  const txs = getTransactionsForMonth(ym);
+  let expense = 0;
+  const byCategory = {};
+  txs.forEach(t => {
+    byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
+    expense += t.amount;
+  });
+
+  const incomeActual = getIncomeActualForMonth(ym);
+  const income = Object.values(incomeActual).reduce((a,b)=>a+b, 0);
+
+  const budgetTotal = AppState.categories.reduce((a,c)=>a+(c.budget||0), 0);
+
+  return { income, expense, byCategory, budgetTotal, balance: income - expense, budgetDiff: budgetTotal - expense };
+}
+
+function getIncomeActualForMonth(ym){
+  const stored = stor('kk_income_actual') || {};
+  if (stored[ym]) return stored[ym];
+  if (HISTORICAL_DATA[ym] && HISTORICAL_DATA[ym].income_actual) {
+    return HISTORICAL_DATA[ym].income_actual;
+  }
+  return {};
+}
+
+function setIncomeActualForMonth(ym, data){
+  const stored = stor('kk_income_actual') || {};
+  stored[ym] = data;
+  stor('kk_income_actual', stored);
+}
+
+function getCardUsageForMonth(ym, cardName){
+  const txs = getTransactionsForMonth(ym);
+  return txs.filter(t => t.method === cardName).reduce((a,t)=>a+t.amount, 0);
+}
+
+function getCardBillingForMonth(ym, cardName){
+  const cb = AppState.cardBillings[ym];
+  if (cb && cb[cardName] !== undefined) return cb[cardName];
+  return null;
+}
+
+function setCardBillingForMonth(ym, cardName, amount){
+  if (!AppState.cardBillings[ym]) AppState.cardBillings[ym] = {};
+  AppState.cardBillings[ym][cardName] = amount;
+  saveLocalState();
+}
+
+/* ============================================================
+   画面遷移
+   ============================================================ */
+function goToPage(page){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', settings:'設定'};
+  document.getElementById('page-title').textContent = titles[page] || '家計手帖';
+  document.getElementById('month-selector-wrap').style.display = (page==='settings') ? 'none' : 'flex';
+  document.getElementById('fab-add').style.display = (page==='settings') ? 'none' : 'flex';
+
+  if (page === 'home') renderHome();
+  if (page === 'history') renderHistory();
+  if (page === 'analysis') renderAnalysis();
+  if (page === 'cards') renderCards();
+  if (page === 'settings') renderSettings();
+
+  scrollToTop();
+}
+
+function scrollToTop(){
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
+function changeMonth(delta){
+  const [y,m] = AppState.currentMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  AppState.currentMonth = `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+  document.getElementById('current-month-label').textContent = monthLabel(AppState.currentMonth);
+  _historyFilterDay = null;
+  _historyFilterCategory = null;
+  _historyFilterMethod = null;
+  const activePage = document.querySelector('.page.active').id.replace('page-','');
+  if (activePage === 'home') renderHome();
+  if (activePage === 'history') renderHistory();
+  if (activePage === 'analysis') renderAnalysis();
+  if (activePage === 'cards') renderCards();
+}
+
+/* ============================================================
+   ホーム画面描画
+   ============================================================ */
+function renderHome(){
+  const ym = AppState.currentMonth;
+  const summary = getMonthSummary(ym);
+
+  const balEl = document.getElementById('home-balance');
+  balEl.innerHTML = `<span class="yen">¥</span>${Math.round(summary.balance).toLocaleString()}`;
+  balEl.classList.toggle('minus', summary.balance < 0);
+
+  document.getElementById('home-income').textContent = fmtYen(summary.income);
+  document.getElementById('home-expense').textContent = fmtYen(summary.expense);
+
+  const catListEl = document.getElementById('home-category-list');
+  const sortedCats = AppState.categories
+    .map(c => ({...c, actual: summary.byCategory[c.name] || 0}))
+    .filter(c => c.actual > 0 || c.budget > 0)
+    .sort((a,b) => b.actual - a.actual)
+    .slice(0, 8);
+
+  if (sortedCats.length === 0) {
+    catListEl.innerHTML = '<div class="empty-hint">この月のデータがありません</div>';
+  } else {
+    catListEl.innerHTML = sortedCats.map(c => {
+      const pct = c.budget > 0 ? Math.min(100, (c.actual / c.budget) * 100) : (c.actual > 0 ? 100 : 0);
+      const over = c.budget > 0 && c.actual > c.budget;
+      return `
+        <div class="cat-item">
+          <div class="cat-item-top">
+            <span class="cat-name">${escapeHtml(c.name)}</span>
+            <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''}</span>
+          </div>
+          <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+  }
+
+  const cardListEl = document.getElementById('home-card-list');
+  const cards = AppState.paymentMethods.filter(m => m.isCard);
+  const cardRows = cards.map(card => {
+    const usage = getCardUsageForMonth(ym, card.name);
+    const billed = getCardBillingForMonth(ym, card.name);
+    if (usage === 0 && billed === null) return null;
+    const diff = billed !== null ? (billed - usage) : null;
+    let diffHtml = '<span class="budget">未確定</span>';
+    if (diff !== null) {
+      const ok = Math.abs(diff) < 1;
+      diffHtml = `<span style="color:${ok?'var(--sage)':'var(--red-deficit)'};font-weight:700">${ok?'差 ±0':'差 '+fmtYenSigned(diff)}</span>`;
+    }
+    return `
+      <div class="cat-item">
+        <div class="cat-item-top">
+          <span class="cat-name">${escapeHtml(card.name)}</span>
+          <span class="cat-amount">利用 ${fmtYen(usage)}</span>
+        </div>
+        <div style="font-size:11.5px;text-align:right">${billed!==null?`請求 ${fmtYen(billed)} ・ `:''}${diffHtml}</div>
+      </div>`;
+  }).filter(Boolean);
+
+  cardListEl.innerHTML = cardRows.length ? cardRows.join('') : '<div class="empty-hint">この月のカード利用はありません</div>';
+
+  const recentEl = document.getElementById('home-recent-tx');
+  const recent = getTransactionsForMonth(ym).slice().sort((a,b)=> b.date.localeCompare(a.date) || b.createdAt-a.createdAt).slice(0,6);
+  if (recent.length === 0) {
+    recentEl.innerHTML = '<div class="empty-hint">記帳がありません</div>';
+  } else {
+    recentEl.innerHTML = recent.map(t => `
+      <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+        <div class="cat-item-top">
+          <span class="cat-name">${escapeHtml(t.category)}</span>
+          <span class="cat-amount">${fmtYen(t.amount)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
+      </div>`).join('');
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============================================================
+   入力モーダル
+   ============================================================ */
+let _selectedTxCategory = null;
+let _selectedTxMethod = null;
+
+function updateTxFieldTriggerLabels(){
+  const catBtn = document.getElementById('tx-category-trigger');
+  const methodBtn = document.getElementById('tx-method-trigger');
+  catBtn.textContent = _selectedTxCategory || '選択してください';
+  catBtn.classList.toggle('empty', !_selectedTxCategory);
+  methodBtn.textContent = _selectedTxMethod || '選択してください';
+  methodBtn.classList.toggle('empty', !_selectedTxMethod);
+}
+
+function openTxFieldDrum(field){
+  let values, title, currentVal;
+  if (field === 'category') {
+    values = AppState.categories.map(c => c.name);
+    title = '項目を選択';
+    currentVal = _selectedTxCategory;
+  } else {
+    values = AppState.paymentMethods.map(m => m.name);
+    title = '支払い方法を選択';
+    currentVal = _selectedTxMethod;
+  }
+  if (values.length === 0) {
+    showToast('設定から項目を追加してください');
+    return;
+  }
+  _drumTargetField = 'tx-' + field;
+  buildDrumDOM(title, values, currentVal || values[0]);
+}
+
+function openTxModal(txId){
+  AppState.editingTxId = txId || null;
+  const expenseCats = AppState.categories.map(c=>c.name);
+  const methods = AppState.paymentMethods.map(m=>m.name);
+
+  let tx = null;
+  if (txId) {
+    tx = AppState.transactions.find(t => t.id === txId);
+  }
+
+  document.getElementById('tx-modal-title').textContent = tx ? '記録を編集' : '記帳する';
+  document.getElementById('tx-date').value = tx ? tx.date : todayYMD();
+  document.getElementById('tx-amount').value = tx ? tx.amount : '';
+  document.getElementById('tx-memo').value = tx ? (tx.memo||'') : '';
+  document.getElementById('tx-delete-btn').style.display = tx ? 'block' : 'none';
+  document.getElementById('tx-submit-btn').textContent = tx ? '更新する' : '記帳する';
+
+  _selectedTxCategory = tx ? tx.category : (expenseCats[0] || null);
+  _selectedTxMethod = tx ? tx.method : (methods[0] || null);
+  updateTxFieldTriggerLabels();
+
+  document.getElementById('tx-modal-overlay').classList.add('show');
+}
+
+function closeTxModal(){
+  document.getElementById('tx-modal-overlay').classList.remove('show');
+  AppState.editingTxId = null;
+}
+
+function submitTransaction(){
+  const date = document.getElementById('tx-date').value;
+  const amount = parseFloat(document.getElementById('tx-amount').value);
+  const memo = document.getElementById('tx-memo').value.trim();
+
+  if (!date || !amount || amount <= 0) {
+    showToast('日付と金額を正しく入力してください');
+    return;
+  }
+  if (!_selectedTxCategory || !_selectedTxMethod) {
+    showToast('項目と支払い方法を選択してください');
+    return;
+  }
+
+  if (AppState.editingTxId) {
+    const tx = AppState.transactions.find(t => t.id === AppState.editingTxId);
+    if (tx) {
+      tx.date = date; tx.amount = amount; tx.category = _selectedTxCategory;
+      tx.method = _selectedTxMethod; tx.memo = memo;
+    }
+    showToast('記録を更新しました');
+  } else {
+    AppState.transactions.push({
+      id: nextTxId(), date, amount, category: _selectedTxCategory,
+      method: _selectedTxMethod, memo, createdAt: Date.now()
+    });
+    showToast('記帳しました');
+  }
+
+  saveLocalState();
+  closeTxModal();
+  refreshActivePage();
+}
+
+function deleteCurrentTransaction(){
+  if (!AppState.editingTxId) return;
+  const txId = AppState.editingTxId;
+  showConfirm('この記録を削除しますか？', () => {
+    AppState.transactions = AppState.transactions.filter(t => t.id !== txId);
+    saveLocalState();
+    closeTxModal();
+    refreshActivePage();
+  });
+}
+
+function refreshActivePage(){
+  const activePage = document.querySelector('.page.active').id.replace('page-','');
+  if (activePage === 'home') renderHome();
+  if (activePage === 'history') renderHistory();
+  if (activePage === 'analysis') renderAnalysis();
+  if (activePage === 'cards') renderCards();
+}
+
+/* ============================================================
+   トースト
+   ============================================================ */
+let _toastTimer = null;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=> el.classList.remove('show'), 2200);
+}
+
+/* ============================================================
+   カスタム確認ダイアログ（confirm()の代替・サンドボックス環境対応）
+   ============================================================ */
+let _confirmCallback = null;
+
+function showConfirm(message, onConfirm){
+  document.getElementById('confirm-message').textContent = message;
+  _confirmCallback = onConfirm;
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+
+function setupConfirmButtons(){
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const cancelBtn = document.getElementById('confirm-cancel-btn');
+  const overlay = document.getElementById('confirm-overlay');
+  if (!okBtn || okBtn._bound) return;
+  okBtn._bound = true;
+  okBtn.onclick = () => {
+    overlay.classList.remove('show');
+    const cb = _confirmCallback;
+    _confirmCallback = null;
+    if (cb) cb();
+  };
+  cancelBtn.onclick = () => {
+    overlay.classList.remove('show');
+    _confirmCallback = null;
+  };
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('show');
+      _confirmCallback = null;
+    }
+  };
+}
+
+/* ============================================================
+   履歴ページ（3メイングループ：日付／項目／支払い、各々に絞り込みトグル）
+   ============================================================ */
+let _historyMainTab = 'date'; // 'date' | 'category' | 'method'
+let _historyFilterOn = { date: false, category: false, method: false };
+let _historyFilterDay = null;
+let _historyFilterCategory = null;
+let _historyFilterMethod = null;
+
+const HISTORY_MAIN_LABELS = { date: '日付順', category: '項目別', method: '支払い別' };
+const HISTORY_FILTER_LABELS = { date: '日付で絞り込み', category: '項目で絞り込み', method: '支払いで絞り込み' };
+
+function renderHistory(){
+  const ym = AppState.currentMonth;
+  let txs = getTransactionsForMonth(ym).slice();
+
+  const filterIsOn = _historyFilterOn[_historyMainTab];
+
+  if (filterIsOn) {
+    if (_historyMainTab === 'date' && _historyFilterDay) {
+      txs = txs.filter(t => parseInt(t.date.split('-')[2],10) === parseInt(_historyFilterDay,10));
+    }
+    if (_historyMainTab === 'category' && _historyFilterCategory) {
+      txs = txs.filter(t => t.category === _historyFilterCategory);
+    }
+    if (_historyMainTab === 'method' && _historyFilterMethod) {
+      txs = txs.filter(t => t.method === _historyFilterMethod);
+    }
+  }
+
+  let sorted;
+  if (_historyMainTab === 'category') {
+    sorted = txs.sort((a,b) => a.category.localeCompare(b.category,'ja') || b.date.localeCompare(a.date));
+  } else if (_historyMainTab === 'method') {
+    sorted = txs.sort((a,b) => a.method.localeCompare(b.method,'ja') || b.date.localeCompare(a.date));
+  } else {
+    sorted = txs.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  }
+
+  const total = txs.reduce((a,t)=>a+t.amount, 0);
+
+  let filterTriggerHtml = '';
+  if (filterIsOn) {
+    if (_historyMainTab === 'date') {
+      filterTriggerHtml = `
+        <div class="filter-trigger-row">
+          <button class="filter-trigger-btn ${_historyFilterDay?'set':''}" onclick="openHistoryFilterDrum('day')">
+            <span>${_historyFilterDay ? _historyFilterDay+'日' : '日付を選択'}</span>
+            <span class="ft-arrow">▾</span>
+          </button>
+        </div>`;
+    } else if (_historyMainTab === 'category') {
+      filterTriggerHtml = `
+        <div class="filter-trigger-row">
+          <button class="filter-trigger-btn ${_historyFilterCategory?'set':''}" onclick="openHistoryFilterDrum('category')">
+            <span>${_historyFilterCategory ? escapeHtml(_historyFilterCategory) : '項目を選択'}</span>
+            <span class="ft-arrow">▾</span>
+          </button>
+        </div>`;
+    } else {
+      filterTriggerHtml = `
+        <div class="filter-trigger-row">
+          <button class="filter-trigger-btn ${_historyFilterMethod?'set':''}" onclick="openHistoryFilterDrum('method')">
+            <span>${_historyFilterMethod ? escapeHtml(_historyFilterMethod) : '支払い方法を選択'}</span>
+            <span class="ft-arrow">▾</span>
+          </button>
+        </div>`;
+    }
+  }
+
+  let html = `
+    <div class="history-summary-bar">
+      <div>
+        <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(ym)}の記帳件数</div>
+        <div style="font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700">${txs.length}件 <span style="font-size:13px;color:var(--ink-soft);font-weight:400">/ ${fmtYen(total)}</span></div>
+      </div>
+    </div>
+
+    <div class="sort-tabs">
+      ${Object.keys(HISTORY_MAIN_LABELS).map(m => `<button class="sort-tab ${_historyMainTab===m?'active':''}" onclick="setHistoryMainTab('${m}')">${HISTORY_MAIN_LABELS[m]}</button>`).join('')}
+    </div>
+    <div class="sub-toggle-row">
+      <label class="sub-toggle">
+        <input type="checkbox" ${filterIsOn?'checked':''} onchange="toggleHistoryFilter(this.checked)">
+        <span>${HISTORY_FILTER_LABELS[_historyMainTab]}</span>
+      </label>
+    </div>
+
+    ${filterTriggerHtml}
+  `;
+
+  const needsSelection = filterIsOn && (
+    (_historyMainTab === 'date' && !_historyFilterDay) ||
+    (_historyMainTab === 'category' && !_historyFilterCategory) ||
+    (_historyMainTab === 'method' && !_historyFilterMethod)
+  );
+
+  if (needsSelection) {
+    html += '<div class="card category-list"><div class="empty-hint">上のボタンから選択してください</div></div>';
+  } else if (sorted.length === 0) {
+    html += '<div class="card category-list"><div class="empty-hint">該当する記帳がありません</div></div>';
+  } else if (_historyMainTab === 'date' || filterIsOn) {
+    html += '<div class="card category-list">' + sorted.map(t => historyRowHtml(t)).join('') + '</div>';
+  } else {
+    const groupKey = _historyMainTab === 'category' ? 'category' : 'method';
+    const groups = [];
+    let lastKey = null;
+    sorted.forEach(t => {
+      if (t[groupKey] !== lastKey) {
+        groups.push({key: t[groupKey], items: []});
+        lastKey = t[groupKey];
+      }
+      groups[groups.length-1].items.push(t);
+    });
+    html += groups.map(g => {
+      const subtotal = g.items.reduce((a,t)=>a+t.amount,0);
+      return `
+        <div class="history-group-label">
+          <span>${escapeHtml(g.key)}</span>
+          <span style="color:var(--gray-muted);font-weight:400">${fmtYen(subtotal)} ・ ${g.items.length}件</span>
+        </div>
+        <div class="card category-list" style="margin-bottom:10px">${g.items.map(t => historyRowHtml(t)).join('')}</div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('history-content').innerHTML = html;
+  injectHistoryStyles();
+}
+
+function historyRowHtml(t){
+  return `
+    <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+      <div class="cat-item-top">
+        <span class="cat-name">${escapeHtml(t.category)}</span>
+        <span class="cat-amount">${fmtYen(t.amount)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
+    </div>`;
+}
+
+function setHistoryMainTab(tab){
+  _historyMainTab = tab;
+  renderHistory();
+  scrollToTop();
+}
+
+function toggleHistoryFilter(checked){
+  _historyFilterOn[_historyMainTab] = checked;
+  renderHistory();
+}
+
+function injectHistoryStyles(){
+  if (document.getElementById('history-extra-style')) return;
+  const style = document.createElement('style');
+  style.id = 'history-extra-style';
+  style.textContent = `
+    .history-summary-bar { background: var(--white); border-radius: 16px; padding: 16px 18px; box-shadow: 0 2px 0 var(--line); margin-bottom: 14px; }
+    .sort-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+    .sort-tab { flex: 1; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--white); color: var(--ink-soft); font-size: 12.5px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer; white-space: nowrap; }
+    .sort-tab.active { background: var(--terracotta); border-color: var(--terracotta); color: white; }
+    .sub-toggle-row { margin-bottom: 12px; }
+    .sub-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); font-weight: 700; cursor: pointer; padding: 2px 2px; }
+    .sub-toggle input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--terracotta); cursor: pointer; }
+    .history-group-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--terracotta); padding: 4px 4px 8px; }
+  `;
+  document.head.appendChild(style);
+}
+
+/* ============================================================
+   ドラム式ピッカー（履歴の絞り込み用 / golf_trackerと同じ操作感）
+   ============================================================ */
+let _drumScrollEl = null;
+let _drumValues = [];
+let _drumTargetField = null; // 'category' | 'method'
+
+function openHistoryFilterDrum(field){
+  _drumTargetField = field;
+  const ym = AppState.currentMonth;
+  const txsInMonth = getTransactionsForMonth(ym);
+
+  let values, title, currentVal;
+  if (field === 'day') {
+    const usedDays = [...new Set(txsInMonth.map(t => parseInt(t.date.split('-')[2],10)))].sort((a,b)=>a-b);
+    values = usedDays.map(d => String(d));
+    title = '日付で絞り込み';
+    currentVal = _historyFilterDay ? String(_historyFilterDay) : (values[0]||null);
+  } else if (field === 'category') {
+    const usedCats = [...new Set(txsInMonth.map(t => t.category))];
+    values = AppState.categories.map(c=>c.name).filter(n => usedCats.includes(n));
+    title = '項目で絞り込み';
+    currentVal = _historyFilterCategory || (values[0]||null);
+  } else {
+    const usedMethods = [...new Set(txsInMonth.map(t => t.method))];
+    values = AppState.paymentMethods.map(m=>m.name).filter(n => usedMethods.includes(n));
+    title = '支払い方法で絞り込み';
+    currentVal = _historyFilterMethod || (values[0]||null);
+  }
+
+  if (values.length === 0) {
+    showToast('この月にはデータがありません');
+    return;
+  }
+
+  buildDrumDOM(title, values, currentVal, field === 'day' ? v => v + '日' : null);
+}
+
+function buildDrumDOM(title, values, currentVal, formatter){
+  let existing = document.getElementById('drum-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'drum-overlay show';
+  overlay.id = 'drum-overlay';
+  overlay.onclick = e => { if (e.target === overlay) closeDrum(false); };
+
+  const sheet = document.createElement('div');
+  sheet.className = 'drum-sheet';
+  sheet.innerHTML = `
+    <div class="drum-toolbar">
+      <button class="drum-cancel" onclick="closeDrum(false)">キャンセル</button>
+      <span class="drum-title">${escapeHtml(title)}</span>
+      <button class="drum-done" onclick="closeDrum(true)">決定</button>
+    </div>
+    <div class="drum-body" id="drum-body"></div>`;
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+
+  const body = document.getElementById('drum-body');
+  const col = document.createElement('div');
+  col.className = 'drum-col';
+  col.style.position = 'relative';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'drum-col-label';
+  lbl.textContent = '選択してください';
+
+  const scroll = document.createElement('div');
+  scroll.className = 'drum-scroll';
+
+  const ITEM_H = 44;
+  const PAD = 2;
+  for (let p=0; p<PAD; p++) {
+    const pad = document.createElement('div');
+    pad.className = 'drum-item';
+    scroll.appendChild(pad);
+  }
+  values.forEach(v => {
+    const item = document.createElement('div');
+    item.className = 'drum-item';
+    item.textContent = formatter ? formatter(v) : v;
+    scroll.appendChild(item);
+  });
+  for (let p=0; p<PAD; p++) {
+    const pad = document.createElement('div');
+    pad.className = 'drum-item';
+    scroll.appendChild(pad);
+  }
+
+  const highlight = document.createElement('div');
+  highlight.className = 'drum-highlight';
+
+  col.appendChild(lbl);
+  col.appendChild(scroll);
+  col.appendChild(highlight);
+  body.appendChild(col);
+
+  const curIdx = values.indexOf(currentVal);
+  const targetIdx = curIdx >= 0 ? curIdx : 0;
+  requestAnimationFrame(() => {
+    scroll.scrollTop = targetIdx * ITEM_H;
+    updateDrumHighlight(scroll);
+  });
+
+  scroll.addEventListener('scroll', () => updateDrumHighlight(scroll), {passive:true});
+
+  _drumScrollEl = scroll;
+  _drumValues = values;
+}
+
+function updateDrumHighlight(scroll){
+  const ITEM_H = 44;
+  const PAD = 2;
+  const rawIdx = scroll.scrollTop / ITEM_H;
+  const snapIdx = Math.round(rawIdx);
+  const items = scroll.querySelectorAll('.drum-item');
+  items.forEach((el,i) => {
+    el.classList.toggle('selected', i === snapIdx + PAD);
+  });
+}
+
+function getDrumValue(){
+  const ITEM_H = 44;
+  const idx = Math.max(0, Math.min(_drumValues.length-1, Math.round(_drumScrollEl.scrollTop / ITEM_H)));
+  return _drumValues[idx];
+}
+
+function closeDrum(apply){
+  if (apply && _drumScrollEl) {
+    const val = getDrumValue();
+    if (_drumTargetField === 'category') _historyFilterCategory = val;
+    if (_drumTargetField === 'method') _historyFilterMethod = val;
+    if (_drumTargetField === 'day') _historyFilterDay = val;
+    if (_drumTargetField === 'tx-category') { _selectedTxCategory = val; updateTxFieldTriggerLabels(); }
+    if (_drumTargetField === 'tx-method') { _selectedTxMethod = val; updateTxFieldTriggerLabels(); }
+    if (_drumTargetField === 'analysis-category') { _analysisSelectedCategory = val; renderAnalysis(); }
+    if (_drumTargetField && _drumTargetField.startsWith('billing-day-')) {
+      const idx = parseInt(_drumTargetField.replace('billing-day-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].billingDay = parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
+    if (_drumTargetField === 'category' || _drumTargetField === 'method' || _drumTargetField === 'day') renderHistory();
+  }
+  const overlay = document.getElementById('drum-overlay');
+  if (overlay) overlay.remove();
+  _drumScrollEl = null;
+  _drumValues = [];
+  _drumTargetField = null;
+}
+function getPastMonths(ym, count){
+  const months = [];
+  const [y,m] = ym.split('-').map(Number);
+  for (let i = count-1; i >= 0; i--) {
+    const d = new Date(y, m-1-i, 1);
+    months.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}`);
+  }
+  return months;
+}
+
+let _analysisSelectedCategory = null;
+
+function renderAnalysis(){
+  const ym = AppState.currentMonth;
+  const summary = getMonthSummary(ym);
+  const pastMonths = getPastMonths(ym, 6);
+  const monthSummaries = pastMonths.map(m => ({ ym: m, ...getMonthSummary(m) }));
+  const maxAbsBalance = Math.max(1, ...monthSummaries.map(m => Math.abs(m.balance)));
+
+  // 先月比
+  const prevYm = pastMonths[pastMonths.length-2];
+  const prevSummary = prevYm ? getMonthSummary(prevYm) : null;
+  const balanceDelta = prevSummary ? summary.balance - prevSummary.balance : null;
+
+  const shareColors = ['var(--terracotta)','var(--red-deficit)','var(--blue-card)','var(--purple-card)','var(--gold)','var(--sage)'];
+
+  // カード比較（先月＝実際に使った月の利用と請求）
+  const billingTargetYm = getPastMonths(ym, 2)[0];
+  const cards = AppState.paymentMethods.filter(m => m.isCard);
+  const cardRows = cards.map(card => {
+    const usage = getCardUsageForMonth(billingTargetYm, card.name);
+    const billed = getCardBillingForMonth(billingTargetYm, card.name);
+    return { name: card.name, usage, billed };
+  }).filter(c => c.usage > 0 || c.billed !== null);
+
+  // 項目選択（デフォルトは支出最大カテゴリ）
+  if (!_analysisSelectedCategory || !AppState.categories.some(c=>c.name===_analysisSelectedCategory)) {
+    const topCat = Object.entries(summary.byCategory).sort((a,b)=>b[1]-a[1])[0];
+    _analysisSelectedCategory = topCat ? topCat[0] : (AppState.categories[0]||{}).name || null;
+  }
+  const yearMonths = getPastMonths(ym, 12);
+  const categoryYearData = yearMonths.map(m => {
+    const s = getMonthSummary(m);
+    return { ym: m, amount: s.byCategory[_analysisSelectedCategory] || 0 };
+  });
+  const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
+
+  let html = `
+    <div class="kpi-grid">
+      <div class="kpi-card full">
+        <div class="kpi-label">月間収支バランス</div>
+        <div class="kpi-value ${summary.balance<0?'neg':''}">${fmtYenSigned(summary.balance).replace('+','')}</div>
+        ${balanceDelta !== null ? `<span class="kpi-delta ${balanceDelta>=0?'up':'down'}">先月比 ${fmtYenSigned(balanceDelta)}</span>` : ''}
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">収入</div>
+        <div class="kpi-value" style="font-size:19px">${fmtYen(summary.income)}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">支出</div>
+        <div class="kpi-value" style="font-size:19px">${fmtYen(summary.expense)}</div>
+      </div>
+    </div>
+
+    <div class="section-title mt"><span class="label">収支の推移</span></div>
+    <div class="chart-card">
+      <div class="bar-chart bar-chart-labeled">
+        ${monthSummaries.map(m => {
+          const h = Math.max(6, Math.round((Math.abs(m.balance) / maxAbsBalance) * 78));
+          const isCurrent = m.ym === ym;
+          const cls = m.balance < 0 ? 'minus' : (isCurrent ? 'current' : '');
+          return `<div class="bar-col">
+            <span class="bar-value-label">${fmtYenShort(m.balance)}</span>
+            <div class="bar-wrap"><div class="bar ${cls}" style="height:${h}px"></div></div>
+            <span class="bar-month">${parseInt(m.ym.split('-')[1])}月</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="section-title mt">
+      <span class="label">項目別の推移（過去1年）</span>
+    </div>
+    <div class="chart-card">
+      <button type="button" class="drum-select-btn" style="margin-bottom:14px" onclick="openAnalysisCategoryDrum()">
+        ${_analysisSelectedCategory ? escapeHtml(_analysisSelectedCategory) : '項目を選択'}
+      </button>
+      ${_analysisSelectedCategory ? `
+        <div class="bar-chart bar-chart-labeled bar-chart-year">
+          ${categoryYearData.map(d => {
+            const h = Math.max(4, Math.round((d.amount / maxCatYearAmount) * 78));
+            const isCurrent = d.ym === ym;
+            return `<div class="bar-col">
+              <span class="bar-value-label small">${d.amount>0?fmtYenShort(d.amount):''}</span>
+              <div class="bar-wrap"><div class="bar ${isCurrent?'current':''}" style="height:${h}px"></div></div>
+              <span class="bar-month">${parseInt(d.ym.split('-')[1])}月</span>
+            </div>`;
+          }).join('')}
+        </div>
+      ` : '<div class="empty-hint">項目を選択してください</div>'}
+    </div>
+
+    <div class="section-title mt"><span class="label">カード請求 vs 利用累計（${monthLabel(billingTargetYm)}利用分）</span></div>
+    <div class="card-table">
+      <div class="card-table-head"><span>カード</span><span>利用累計</span><span>請求額</span><span>差分</span></div>
+      ${cardRows.length ? cardRows.map((c,i) => {
+        const diff = c.billed !== null ? c.billed - c.usage : null;
+        const ok = diff !== null && Math.abs(diff) < 1;
+        return `
+        <div class="card-table-row">
+          <span class="card-id"><span class="card-dot" style="background:${shareColors[i%shareColors.length]}"></span>${escapeHtml(c.name)}</span>
+          <span>${fmtYen(c.usage)}</span>
+          <span>${c.billed!==null ? fmtYen(c.billed) : '—'}</span>
+          ${diff!==null ? `<span class="diff-tag ${ok?'ok':'warn'}">${ok?'±0':fmtYenSigned(diff)}</span>` : '<span class="diff-tag warn">未確定</span>'}
+        </div>`;
+      }).join('') : '<div style="padding:16px" class="empty-hint">データがありません</div>'}
+    </div>
+
+    <div class="section-title mt"><span class="label">AI分析サマリー</span></div>
+    <div class="ai-card" id="ai-analysis-card">
+      <div class="ai-card-title">✦ 今月のポイント</div>
+      <div id="ai-analysis-body">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft)">
+          <div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div>分析中...
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analysis-content').innerHTML = html;
+  injectAnalysisStyles();
+  runAiAnalysis(ym, summary, cardRows);
+}
+
+function fmtYenShort(n){
+  const r = Math.round(n);
+  const sign = r < 0 ? '-' : '';
+  const abs = Math.abs(r);
+  if (abs >= 10000) return sign + (abs/10000).toFixed(abs%10000===0?0:1) + '万';
+  return sign + abs.toLocaleString();
+}
+
+function openAnalysisCategoryDrum(){
+  const values = AppState.categories.map(c => c.name);
+  if (values.length === 0) { showToast('設定から項目を追加してください'); return; }
+  _drumTargetField = 'analysis-category';
+  buildDrumDOM('項目を選択', values, _analysisSelectedCategory || values[0]);
+}
+
+function injectAnalysisStyles(){
+  if (document.getElementById('analysis-extra-style')) return;
+  const style = document.createElement('style');
+  style.id = 'analysis-extra-style';
+  style.textContent = `
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+    .kpi-card { background: var(--white); border-radius: 16px; padding: 16px; box-shadow: 0 2px 0 var(--line); position: relative; overflow: hidden; }
+    .kpi-card.full { grid-column: span 2; }
+    .kpi-card::before { content: ""; position: absolute; top: -24px; right: -24px; width: 70px; height: 70px; background: var(--terracotta-soft); border-radius: 50%; opacity: 0.35; }
+    .kpi-label { font-size: 11px; color: var(--gray-muted); margin-bottom: 8px; }
+    .kpi-value { font-family: 'Shippori Mincho', serif; font-size: 26px; font-weight: 700; }
+    .kpi-value.neg { color: var(--red-deficit); }
+    .kpi-delta { font-size: 11px; margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 100px; font-weight: 700; }
+    .kpi-delta.down { background: rgba(181,72,58,0.12); color: var(--red-deficit); }
+    .kpi-delta.up { background: var(--sage-soft); color: var(--sage); }
+    .chart-card { background: var(--white); border-radius: 16px; padding: 20px; margin-bottom: 8px; box-shadow: 0 2px 0 var(--line); }
+    .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding-bottom: 4px; }
+    .bar-chart-labeled { height: 132px; }
+    .bar-chart-year { gap: 4px; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+    .bar-value-label { font-size: 9.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+    .bar-value-label.small { font-size: 8.5px; }
+    .bar-wrap { width: 100%; height: 80px; display: flex; align-items: flex-end; }
+    .bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--sage-soft); }
+    .bar.current { background: var(--terracotta); }
+    .bar.minus { background: var(--red-deficit); opacity: 0.75; }
+    .bar-month { font-size: 9px; color: var(--gray-muted); }
+    .legend-row { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 8px 0; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .legend-name { flex: 1; color: var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .legend-bar-track { flex: 1.4; height: 6px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
+    .legend-bar-fill { height: 100%; border-radius: 100px; }
+    .legend-val { font-weight: 700; width: 68px; text-align: right; flex-shrink:0; font-size:11.5px; }
+    .card-table { background: var(--white); border-radius: 16px; overflow: hidden; margin-bottom: 8px; box-shadow: 0 2px 0 var(--line); }
+    .card-table-head { display: grid; grid-template-columns: 1.3fr 1fr 1fr 0.9fr; padding: 12px 16px; font-size: 10px; color: var(--gray-muted); border-bottom: 1px solid var(--cream-deep); background: var(--cream); }
+    .card-table-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 0.9fr; padding: 13px 16px; font-size: 11.5px; align-items: center; border-bottom: 1px solid var(--cream-deep); }
+    .card-table-row:last-child { border-bottom: none; }
+    .card-id { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink:0; }
+    .diff-tag { font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 6px; text-align: center; }
+    .diff-tag.ok { background: var(--sage-soft); color: var(--sage); }
+    .diff-tag.warn { background: rgba(181,72,58,0.12); color: var(--red-deficit); }
+    .ai-card { background: linear-gradient(135deg, var(--white), var(--cream-deep)); border: 1px solid var(--terracotta-soft); border-radius: 16px; padding: 20px; margin-bottom: 8px; }
+    .ai-card-title { font-family: 'Shippori Mincho', serif; font-size: 14px; font-weight: 700; color: var(--terracotta); margin-bottom: 14px; }
+    .ai-point { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.7; margin-bottom: 12px; color: var(--ink); }
+    .ai-point:last-child { margin-bottom: 0; }
+    .ai-icon { width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+    .ai-icon.good { background: var(--sage-soft); color: var(--sage); }
+    .ai-icon.bad { background: rgba(181,72,58,0.12); color: var(--red-deficit); }
+  `;
+  document.head.appendChild(style);
+}
+
+async function runAiAnalysis(ym, summary, cardRows){
+  const bodyEl = document.getElementById('ai-analysis-body');
+  if (!bodyEl) return;
+
+  // データが少なすぎる場合はスキップ
+  if (summary.expense === 0) {
+    bodyEl.innerHTML = '<div class="ai-point"><span class="ai-icon good">i</span><span>この月の記帳がまだありません。記帳が進むと分析が表示されます。</span></div>';
+    return;
+  }
+
+  const catLines = Object.entries(summary.byCategory)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,10)
+    .map(([k,v]) => `${k}: ${v}円 (予算${(AppState.categories.find(c=>c.name===k)||{}).budget||0}円)`)
+    .join('\n');
+
+  const cardLines = cardRows.map(c => `${c.name}: 利用${c.usage}円 / 請求${c.billed!==null?c.billed+'円':'未確定'}`).join('\n');
+
+  const prompt = `あなたは家計簿アプリのファイナンシャルアドバイザーです。以下の${monthLabel(ym)}の家計データを分析し、良い点1つと改善点・注意点を2つ、日本語で簡潔に（各60字程度）述べてください。
+
+【収支】収入${summary.income}円 / 支出${summary.expense}円 / 予算合計${summary.budgetTotal}円
+
+【項目別支出（上位）】
+${catLines}
+
+【カード利用と請求の差分】
+${cardLines || 'データなし'}
+
+以下のJSON形式のみで回答してください（説明文や前置きは不要）:
+{"good":"良い点の文章","bad1":"注意点1の文章","bad2":"注意点2の文章"}`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 600,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    bodyEl.innerHTML = `
+      <div class="ai-point"><span class="ai-icon good">✓</span><span>${escapeHtml(parsed.good||'')}</span></div>
+      <div class="ai-point"><span class="ai-icon bad">!</span><span>${escapeHtml(parsed.bad1||'')}</span></div>
+      <div class="ai-point"><span class="ai-icon bad">!</span><span>${escapeHtml(parsed.bad2||'')}</span></div>
+    `;
+  } catch(e) {
+    console.warn('AI analysis error:', e);
+    bodyEl.innerHTML = '<div class="ai-point"><span class="ai-icon bad">!</span><span>分析の取得に失敗しました。しばらくしてから分析タブを開き直してください。</span></div>';
+  }
+}
+
+let _cardsSubTab = 'usage'; // 'usage' | 'billing'
+
+function renderCards(){
+  let html = `
+    <div class="sort-tabs">
+      <button class="sort-tab ${_cardsSubTab==='usage'?'active':''}" onclick="setCardsSubTab('usage')">今月の利用合計</button>
+      <button class="sort-tab ${_cardsSubTab==='billing'?'active':''}" onclick="setCardsSubTab('billing')">請求額・差分</button>
+    </div>
+    <div id="cards-subtab-content"></div>
+  `;
+  document.getElementById('cards-content').innerHTML = html;
+  injectAnalysisStyles();
+  injectHistoryStyles();
+  renderCardsSubTab();
+}
+
+function setCardsSubTab(tab){
+  _cardsSubTab = tab;
+  document.querySelectorAll('#page-cards .sort-tab').forEach(b => {
+    b.classList.toggle('active', b.textContent === (tab==='usage'?'今月の利用合計':'請求額・差分'));
+  });
+  renderCardsSubTab();
+  scrollToTop();
+}
+
+function renderCardsSubTab(){
+  if (_cardsSubTab === 'usage') renderCardsUsageTab();
+  else renderCardsBillingTab();
+}
+
+/* ── サブタブ1: 今月の利用合計 ── */
+function renderCardsUsageTab(){
+  const ym = AppState.currentMonth;
+  const cards = AppState.paymentMethods.filter(m => m.isCard);
+  const el = document.getElementById('cards-subtab-content');
+
+  if (cards.length === 0) {
+    el.innerHTML = '<div class="card category-list"><div class="empty-hint">カードが登録されていません。設定から追加してください。</div></div>';
+    return;
+  }
+
+  const rows = cards.map(card => {
+    const usage = getCardUsageForMonth(ym, card.name);
+    const txCount = getTransactionsForMonth(ym).filter(t => t.method === card.name).length;
+    return { ...card, usage, txCount };
+  }).sort((a,b) => b.usage - a.usage);
+
+  const total = rows.reduce((a,c)=>a+c.usage, 0);
+  const maxUsage = Math.max(1, ...rows.map(c=>c.usage));
+
+  let html = `
+    <div class="history-summary-bar">
+      <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(ym)}のカード利用合計</div>
+      <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700">${fmtYen(total)}</div>
+    </div>
+    <div class="card category-list">
+      ${rows.map(c => `
+        <div class="cat-item">
+          <div class="cat-item-top">
+            <span class="cat-name" style="display:flex;align-items:center;gap:8px">
+              <span style="width:24px;height:16px;border-radius:4px;background:${c.color||'var(--terracotta)'};flex-shrink:0"></span>
+              ${escapeHtml(c.name)}
+            </span>
+            <span class="cat-amount">${fmtYen(c.usage)} <span class="budget">/ ${c.txCount}件</span></span>
+          </div>
+          <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${Math.round(c.usage/maxUsage*100)}%;background:${c.color||'var(--terracotta)'}"></div></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  el.innerHTML = html;
+}
+
+/* ── サブタブ2: 請求額入力 & 利用累計との差分 ── */
+function renderCardsBillingTab(){
+  const ym = AppState.currentMonth;
+  const billingTargetYm = getPastMonths(ym, 2)[0]; // 先月（実際に使った月）
+  const cards = AppState.paymentMethods.filter(m => m.isCard);
+  const el = document.getElementById('cards-subtab-content');
+
+  if (cards.length === 0) {
+    el.innerHTML = '<div class="card category-list"><div class="empty-hint">カードが登録されていません。設定から追加してください。</div></div>';
+    return;
+  }
+
+  let html = `
+    <div style="background:var(--cream-deep);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink-soft);line-height:1.6">
+      ここでは<strong>${monthLabel(billingTargetYm)}に使った分</strong>の請求額を入力します。カードは利用月と請求月がずれるため、先月分の利用額に対して実際の請求書の金額を入力して差を確認します。
+    </div>
+    <div class="section-title" style="margin-top:0"><span class="label">${monthLabel(billingTargetYm)}利用分の請求状況</span></div>`;
+  html += '<div style="display:flex;flex-direction:column;gap:12px">';
+  cards.forEach(card => {
+    const usage = getCardUsageForMonth(billingTargetYm, card.name);
+    const billed = getCardBillingForMonth(billingTargetYm, card.name);
+    const diff = billed !== null ? billed - usage : null;
+    const ok = diff !== null && Math.abs(diff) < 1;
+    const txCount = getTransactionsForMonth(billingTargetYm).filter(t => t.method === card.name).length;
+
+    html += `
+      <div class="card" style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:34px;height:22px;border-radius:5px;background:${card.color||'var(--terracotta)'}"></div>
+            <div>
+              <div style="font-size:14.5px;font-weight:700">${escapeHtml(card.name)}</div>
+              <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(billingTargetYm)}の利用 ${txCount}件</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:700">${fmtYen(usage)}</div>
+            <div style="font-size:10.5px;color:var(--gray-muted)">利用累計（都度入力）</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:14px">
+          <div style="flex:1">
+            <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">請求額（一括入力）</label>
+            <input type="number" inputmode="numeric" id="card-bill-${cssEscape(card.name)}" value="${billed!==null?billed:''}" placeholder="未入力"
+              style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--cream)">
+          </div>
+          <button class="submit-btn" style="width:auto;padding:11px 16px;margin-top:18px;font-size:13px"
+            onclick="saveCardBilling('${escapeJs(card.name)}', '${billingTargetYm}')">保存</button>
+        </div>
+        ${diff !== null ? `
+          <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:${ok?'var(--sage-soft)':'rgba(181,72,58,0.1)'};font-size:12.5px;font-weight:700;color:${ok?'var(--sage-deep)':'var(--red-deficit)'};text-align:center">
+            ${ok ? '記帳と請求額が一致しています ✓' : `差額 ${fmtYenSigned(diff)} （${diff>0?'記帳より請求が多い＝記帳漏れの可能性':'記帳より請求が少ない＝記帳の重複・誤入力の可能性'}）`}
+          </div>` : ''}
+      </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function cssEscape(s){ return String(s).replace(/[^a-zA-Z0-9]/g, c => 'u'+c.charCodeAt(0)); }
+function escapeJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function saveCardBilling(cardName, targetYm){
+  const input = document.getElementById('card-bill-' + cssEscape(cardName));
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val < 0) {
+    showToast('正しい金額を入力してください');
+    return;
+  }
+  setCardBillingForMonth(targetYm || AppState.currentMonth, cardName, val);
+  showToast('請求額を保存しました');
+  renderCardsBillingTab();
+}
+
+/* ============================================================
+   設定ページ
+   ============================================================ */
+let _settingsTab = 'categories';
+
+function renderSettings(){
+  const tabs = [
+    {id:'categories', label:'項目・予算'},
+    {id:'income', label:'収入'},
+    {id:'methods', label:'支払い方法'},
+    {id:'accounts', label:'口座'},
+  ];
+
+  let html = `
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px">
+      ${tabs.map(t => `<button class="settings-tab ${t.id===_settingsTab?'active':''}" onclick="switchSettingsTab('${t.id}')">${t.label}</button>`).join('')}
+    </div>
+    <div id="settings-tab-content"></div>
+  `;
+  document.getElementById('settings-content').innerHTML = html;
+  injectSettingsStyles();
+  injectAnalysisStyles();
+  renderSettingsTabContent();
+}
+
+function switchSettingsTab(tab){
+  _settingsTab = tab;
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.toggle('active', b.textContent === ({categories:'項目・予算',income:'収入',methods:'支払い方法',accounts:'口座'})[tab]));
+  renderSettingsTabContent();
+  scrollToTop();
+}
+
+function renderSettingsTabContent(){
+  const el = document.getElementById('settings-tab-content');
+  if (_settingsTab === 'categories') el.innerHTML = renderCategoriesSettings();
+  if (_settingsTab === 'income') el.innerHTML = renderIncomeSettings();
+  if (_settingsTab === 'methods') el.innerHTML = renderMethodsSettings();
+  if (_settingsTab === 'accounts') el.innerHTML = renderAccountsSettings();
+}
+
+function renderCategoriesSettings(){
+  const groups = ['変動費','固定費','貯蓄返済','投資保険'];
+  let html = '';
+  groups.forEach(g => {
+    const cats = AppState.categories.filter(c => c.group === g);
+    html += `<div class="settings-group-label">${g}</div><div class="card settings-list">`;
+    cats.forEach((c, idx) => {
+      const realIdx = AppState.categories.indexOf(c);
+      html += `
+        <div class="settings-row">
+          <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" onchange="updateCategoryField(${realIdx},'name',this.value)">
+          <input type="number" class="settings-input-amt" value="${c.budget}" onchange="updateCategoryField(${realIdx},'budget',this.value)">
+          <button class="settings-del-btn" onclick="deleteCategory(${realIdx})">×</button>
+        </div>`;
+    });
+    html += `<button class="settings-add-btn" onclick="addCategory('${g}')">＋ ${g}に項目を追加</button></div>`;
+  });
+  return html;
+}
+
+function updateCategoryField(idx, field, value){
+  if (!AppState.categories[idx]) return;
+  AppState.categories[idx][field] = field === 'budget' ? (parseFloat(value)||0) : value;
+  saveLocalState();
+}
+
+function deleteCategory(idx){
+  const target = AppState.categories[idx];
+  if (!target) return;
+  showConfirm(`「${target.name}」を削除しますか？`, () => {
+    AppState.categories.splice(idx, 1);
+    saveLocalState();
+    renderSettingsTabContent();
+  });
+}
+
+function addCategory(group){
+  AppState.categories.push({name:'新しい項目', group, budget:0});
+  saveLocalState();
+  renderSettingsTabContent();
+}
+
+function renderIncomeSettings(){
+  let html = `<div class="settings-group-label">収入項目</div><div class="card settings-list">`;
+  AppState.incomeSources.forEach((s, idx) => {
+    html += `
+      <div class="settings-row">
+        <input type="text" class="settings-input-name" value="${escapeHtml(s.name)}" onchange="updateIncomeField(${idx},'name',this.value)">
+        <input type="number" class="settings-input-amt" value="${s.budget}" onchange="updateIncomeField(${idx},'budget',this.value)">
+        <button class="settings-del-btn" onclick="deleteIncomeSource(${idx})">×</button>
+      </div>`;
+  });
+  html += `<button class="settings-add-btn" onclick="addIncomeSource()">＋ 収入項目を追加</button></div>`;
+
+  const ym = AppState.currentMonth;
+  const actual = getIncomeActualForMonth(ym);
+  html += `<div class="settings-group-label" style="margin-top:20px">${monthLabel(ym)}の実際収入</div><div class="card settings-list">`;
+  AppState.incomeSources.forEach(s => {
+    html += `
+      <div class="settings-row">
+        <span style="flex:1;font-size:13.5px;font-weight:700">${escapeHtml(s.name)}</span>
+        <input type="number" class="settings-input-amt" value="${actual[s.name]||0}" onchange="updateIncomeActual('${escapeJs(s.name)}',this.value)">
+      </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function updateIncomeField(idx, field, value){
+  if (!AppState.incomeSources[idx]) return;
+  AppState.incomeSources[idx][field] = field === 'budget' ? (parseFloat(value)||0) : value;
+  saveLocalState();
+}
+function deleteIncomeSource(idx){
+  const target = AppState.incomeSources[idx];
+  if (!target) return;
+  showConfirm(`「${target.name}」を削除しますか？`, () => {
+    AppState.incomeSources.splice(idx, 1);
+    saveLocalState();
+    renderSettingsTabContent();
+  });
+}
+function addIncomeSource(){
+  AppState.incomeSources.push({name:'新しい収入項目', budget:0});
+  saveLocalState();
+  renderSettingsTabContent();
+}
+function updateIncomeActual(name, value){
+  const ym = AppState.currentMonth;
+  const actual = getIncomeActualForMonth(ym);
+  actual[name] = parseFloat(value) || 0;
+  setIncomeActualForMonth(ym, actual);
+  if (currentUser) saveToFirestore();
+}
+
+function renderMethodsSettings(){
+  let html = `<div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
+  AppState.paymentMethods.forEach((m, idx) => {
+    html += `
+      <div class="settings-row settings-row-method">
+        <div class="settings-row-method-top">
+          <input type="text" class="settings-input-name" value="${escapeHtml(m.name)}" onchange="updateMethodField(${idx},'name',this.value)">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-muted);flex-shrink:0">
+            <input type="checkbox" ${m.isCard?'checked':''} onchange="toggleMethodIsCard(${idx},this.checked)">カード
+          </label>
+          <button class="settings-del-btn" onclick="deleteMethod(${idx})">×</button>
+        </div>
+        ${m.isCard ? `
+          <div class="settings-row-method-sub">
+            <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">引き落とし日</span>
+            <button type="button" class="drum-select-btn small" onclick="openBillingDayDrum(${idx})">${m.billingDay ? m.billingDay+'日' : '未設定'}</button>
+          </div>
+        ` : ''}
+      </div>`;
+  });
+  html += `<button class="settings-add-btn" onclick="addMethod()">＋ 支払い方法を追加</button></div>`;
+  return html;
+}
+function updateMethodField(idx, field, value){
+  if (!AppState.paymentMethods[idx]) return;
+  AppState.paymentMethods[idx][field] = value;
+  saveLocalState();
+}
+function toggleMethodIsCard(idx, checked){
+  if (!AppState.paymentMethods[idx]) return;
+  AppState.paymentMethods[idx].isCard = checked;
+  saveLocalState();
+  renderSettingsTabContent();
+}
+function openBillingDayDrum(idx){
+  const m = AppState.paymentMethods[idx];
+  if (!m) return;
+  const values = Array.from({length:31}, (_,i) => String(i+1));
+  _drumTargetField = 'billing-day-' + idx;
+  buildDrumDOM('引き落とし日を選択', values, m.billingDay ? String(m.billingDay) : '25', v => v + '日');
+}
+function deleteMethod(idx){
+  const target = AppState.paymentMethods[idx];
+  if (!target) return;
+  showConfirm(`「${target.name}」を削除しますか？`, () => {
+    AppState.paymentMethods.splice(idx, 1);
+    saveLocalState();
+    renderSettingsTabContent();
+  });
+}
+function addMethod(){
+  const colors = ['#C1683F','#6B85B0','#7C8B6F','#B5483A','#9B82A8','#B8923F'];
+  AppState.paymentMethods.push({name:'新しい支払い方法', isCard:false, color:colors[AppState.paymentMethods.length%colors.length]});
+  saveLocalState();
+  renderSettingsTabContent();
+}
+
+function renderAccountsSettings(){
+  const totalBalance = AppState.accounts.reduce((a,acc)=>a+(acc.balance||0),0);
+  let html = `
+    <div class="settings-group-label">口座一覧</div>`;
+
+  AppState.accounts.forEach((acc, idx) => {
+    if (!acc.balanceHistory) acc.balanceHistory = [];
+    const history = acc.balanceHistory.slice(-12); // 直近12件
+    const maxBal = Math.max(1, ...history.map(h => h.value), acc.balance || 0);
+
+    html += `
+      <div class="card account-card">
+        <div class="account-card-top">
+          <input type="text" class="settings-input-name account-name-input" value="${escapeHtml(acc.name)}" onchange="updateAccountField(${idx},'name',this.value)" placeholder="口座名">
+          <button class="settings-del-btn" onclick="deleteAccount(${idx})">×</button>
+        </div>
+        <input type="text" class="account-memo-input" value="${escapeHtml(acc.memo||'')}" onchange="updateAccountField(${idx},'memo',this.value)" placeholder="メモ（何のための口座か）">
+
+        <div class="account-balance-row">
+          <div style="flex:1">
+            <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">残高を入力</label>
+            <input type="number" inputmode="numeric" id="acc-balance-input-${idx}" value="${acc.balance||0}" class="account-balance-input">
+          </div>
+          <button class="submit-btn" style="width:auto;padding:11px 18px;margin-top:18px;font-size:13px" onclick="saveAccountBalance(${idx})">保存</button>
+        </div>
+
+        <div class="account-current-balance">
+          <span style="font-size:11px;color:var(--gray-muted)">現在の残高</span>
+          <span style="font-family:'Shippori Mincho',serif;font-size:19px;font-weight:700">${fmtYen(acc.balance||0)}</span>
+        </div>
+
+        ${history.length > 1 ? `
+          <div class="account-history-chart">
+            <div style="font-size:10.5px;color:var(--gray-muted);margin-bottom:8px">残高推移（直近${history.length}件の保存履歴）</div>
+            <div class="bar-chart bar-chart-labeled bar-chart-year">
+              ${history.map(h => {
+                const hgt = Math.max(4, Math.round((h.value / maxBal) * 70));
+                const d = new Date(h.savedAt);
+                return `<div class="bar-col">
+                  <span class="bar-value-label small">${fmtYenShort(h.value)}</span>
+                  <div class="bar-wrap"><div class="bar" style="height:${hgt}px;background:var(--blue-card)"></div></div>
+                  <span class="bar-month">${d.getMonth()+1}/${d.getDate()}</span>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        ` : `<div style="font-size:11px;color:var(--gray-muted);padding:10px 0 0">保存を重ねると残高推移グラフが表示されます</div>`}
+      </div>`;
+  });
+
+  html += `<button class="settings-add-btn account-add-btn" onclick="addAccount()">＋ 口座を追加</button>`;
+
+  html += `
+    <div style="margin-top:16px;padding:16px;background:var(--white);border-radius:14px;box-shadow:0 2px 0 var(--line)">
+      <div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:6px">口座残高合計（入力値）</div>
+      <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700">${fmtYen(totalBalance)}</div>
+      <div style="font-size:11px;color:var(--gray-muted);margin-top:8px;line-height:1.6">※ 自動計算（記帳ベースの理論残高）との比較機能は次のステップで追加予定です</div>
+    </div>`;
+  return html;
+}
+function updateAccountField(idx, field, value){
+  if (!AppState.accounts[idx]) return;
+  AppState.accounts[idx][field] = value;
+  saveLocalState();
+}
+function saveAccountBalance(idx){
+  const acc = AppState.accounts[idx];
+  if (!acc) return;
+  const input = document.getElementById('acc-balance-input-' + idx);
+  const val = parseFloat(input.value);
+  if (isNaN(val)) {
+    showToast('正しい金額を入力してください');
+    return;
+  }
+  acc.balance = val;
+  if (!acc.balanceHistory) acc.balanceHistory = [];
+  acc.balanceHistory.push({ value: val, savedAt: Date.now() });
+  saveLocalState();
+  showToast('残高を保存しました');
+  renderSettingsTabContent();
+}
+function deleteAccount(idx){
+  const target = AppState.accounts[idx];
+  if (!target) return;
+  showConfirm(`「${target.name}」を削除しますか？`, () => {
+    AppState.accounts.splice(idx, 1);
+    saveLocalState();
+    renderSettingsTabContent();
+  });
+}
+function addAccount(){
+  AppState.accounts.push({name:'新しい口座', balance:0, memo:'', balanceHistory:[]});
+  saveLocalState();
+  renderSettingsTabContent();
+}
+
+function injectSettingsStyles(){
+  if (document.getElementById('settings-extra-style')) return;
+  const style = document.createElement('style');
+  style.id = 'settings-extra-style';
+  style.textContent = `
+    .settings-tab {
+      flex-shrink: 0; padding: 8px 16px; border-radius: 100px; border: 1px solid var(--line);
+      background: var(--white); color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
+      font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer;
+    }
+    .settings-tab.active { background: var(--terracotta); border-color: var(--terracotta); color: white; }
+    .settings-group-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 14px 0 8px; }
+    .settings-group-label:first-child { margin-top: 0; }
+    .settings-list { padding: 6px 14px; }
+    .settings-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--cream-deep); }
+    .settings-row:last-of-type { border-bottom: none; }
+    .settings-input-name { flex: 1.6; border: none; background: transparent; font-size: 13.5px; font-weight: 700; padding: 4px 0; font-family: inherit; color: var(--ink); min-width:0; }
+    .settings-input-amt { flex: 1; border: none; background: var(--cream); border-radius: 8px; padding: 7px 9px; font-size: 13px; text-align: right; font-family: inherit; color: var(--ink); }
+    .settings-del-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--cream-deep); color: var(--red-deficit); font-size: 16px; cursor: pointer; flex-shrink: 0; }
+    .settings-add-btn { width: 100%; padding: 11px; border: none; background: none; color: var(--terracotta); font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: 'Zen Maru Gothic', sans-serif; }
+    .settings-row-method { flex-direction: column; align-items: stretch; gap: 8px; }
+    .settings-row-method-top { display: flex; align-items: center; gap: 8px; }
+    .settings-row-method-sub { display: flex; align-items: center; gap: 10px; padding-left: 2px; }
+    .drum-select-btn.small { padding: 7px 12px; font-size: 12.5px; width: auto; flex: 1; }
+    .account-card { padding: 18px; margin-bottom: 12px; }
+    .account-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .account-name-input { background: var(--cream); border-radius: 8px; padding: 8px 10px; flex: 1.6; }
+    .account-memo-input {
+      width: 100%; border: 1px solid var(--line); background: var(--cream); border-radius: 8px;
+      padding: 8px 10px; font-size: 12px; color: var(--ink-soft); font-family: inherit; margin-bottom: 14px;
+    }
+    .account-balance-row { display: flex; align-items: center; gap: 10px; border-top: 1px dashed var(--line); padding-top: 14px; }
+    .account-balance-input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; background: var(--cream); font-family: inherit; }
+    .account-current-balance { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; padding: 10px 12px; background: var(--cream); border-radius: 10px; }
+    .account-history-chart { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
+    .account-add-btn { background: var(--white); border-radius: 14px; box-shadow: 0 2px 0 var(--line); padding: 13px; margin-bottom: 14px; }
+  `;
+  document.head.appendChild(style);
+}
+
+/* ============================================================
+   初期化
+   ============================================================ */
+function initApp(){
+  loadLocalState();
+  AppState.currentMonth = todayYM();
+  document.getElementById('current-month-label').textContent = monthLabel(AppState.currentMonth);
+  document.getElementById('tx-date').value = todayYMD();
+  setupConfirmButtons();
+  renderHome();
+  initFirebase();
+}
+
+/* ============================================================
+   Firebase Auth & Sync（golf_tracker / 鬼速PDCAと同じ実装）
+   ============================================================ */
+function initFirebase(){
+  try {
+    firebaseApp = firebase.initializeApp(firebaseConfig, 'kakeibo-app');
+    auth = firebaseApp.auth();
+    db_fs = firebaseApp.firestore();
+
+    auth.onAuthStateChanged(user => {
+      if (skipLoginMode) return;
+      if (user) {
+        currentUser = user;
+        document.getElementById('login-screen').classList.remove('show');
+        updateSyncBadge('synced', user.email.split('@')[0]);
+        loadFromFirestore();
+      } else {
+        currentUser = null;
+        document.getElementById('login-screen').classList.add('show');
+        updateSyncBadge('offline', '未連携');
+      }
+      document.getElementById('app-loading').style.display = 'none';
+    });
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    document.getElementById('app-loading').style.display = 'none';
+  }
+}
+
+function skipLogin(){
+  skipLoginMode = true;
+  document.getElementById('login-screen').classList.remove('show');
+  updateSyncBadge('offline', '未連携');
+  document.getElementById('app-loading').style.display = 'none';
+}
+
+let authMode = 'login';
+function showAuthTab(mode){
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode==='login');
+  document.getElementById('tab-signup').classList.toggle('active', mode==='signup');
+  document.getElementById('auth-submit-btn').textContent = mode==='login' ? 'ログイン' : '新規登録';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function submitAuth(){
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('auth-submit-btn');
+
+  if (!email || !password) {
+    errEl.style.display = ''; errEl.textContent = 'メールアドレスとパスワードを入力してください';
+    return;
+  }
+  if (password.length < 6) {
+    errEl.style.display = ''; errEl.textContent = 'パスワードは6文字以上にしてください';
+    return;
+  }
+  btn.textContent = '処理中...'; btn.disabled = true;
+  errEl.style.display = 'none';
+
+  const action = authMode === 'signup'
+    ? auth.createUserWithEmailAndPassword(email, password)
+    : auth.signInWithEmailAndPassword(email, password);
+
+  action.catch(err => {
+    const msgs = {
+      'auth/user-not-found': 'このメールアドレスは登録されていません',
+      'auth/wrong-password': 'パスワードが間違っています',
+      'auth/email-already-in-use': 'このメールアドレスは既に登録済みです',
+      'auth/invalid-email': 'メールアドレスの形式が正しくありません',
+      'auth/weak-password': 'パスワードが弱すぎます（6文字以上）',
+      'auth/invalid-credential': 'メールアドレスまたはパスワードが間違っています',
+    };
+    errEl.style.display = ''; errEl.textContent = msgs[err.code] || ('エラー: ' + err.code);
+    btn.textContent = authMode === 'signup' ? '新規登録' : 'ログイン'; btn.disabled = false;
+  });
+}
+
+async function saveToFirestore(){
+  if (!currentUser || !db_fs) return;
+  try {
+    await db_fs.collection('users').doc(currentUser.uid)
+      .collection('kakeibo_app').doc('data').set({
+        kk_categories: AppState.categories,
+        kk_income_sources: AppState.incomeSources,
+        kk_payment_methods: AppState.paymentMethods,
+        kk_accounts: AppState.accounts,
+        kk_transactions: AppState.transactions,
+        kk_card_billings: AppState.cardBillings,
+        kk_income_actual: stor('kk_income_actual') || {},
+        updatedAt: Date.now()
+      });
+  } catch(e) { console.warn('Firestore save error:', e); }
+}
+
+async function loadFromFirestore(){
+  if (!currentUser || !db_fs) return;
+  try {
+    updateSyncBadge('syncing', '同期中');
+    const snap = await db_fs.collection('users').doc(currentUser.uid)
+      .collection('kakeibo_app').doc('data').get();
+
+    if (!snap.exists) {
+      await saveToFirestore();
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+      return;
+    }
+
+    const d = snap.data();
+    const localTx = AppState.transactions || [];
+    const cloudTx = d.kk_transactions || [];
+
+    if (cloudTx.length >= localTx.length) {
+      AppState.categories = d.kk_categories || AppState.categories;
+      AppState.incomeSources = d.kk_income_sources || AppState.incomeSources;
+      AppState.paymentMethods = d.kk_payment_methods || AppState.paymentMethods;
+      AppState.accounts = d.kk_accounts || AppState.accounts;
+      AppState.transactions = cloudTx;
+      AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
+      if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
+
+      stor('kk_categories', AppState.categories);
+      stor('kk_income_sources', AppState.incomeSources);
+      stor('kk_payment_methods', AppState.paymentMethods);
+      stor('kk_accounts', AppState.accounts);
+      stor('kk_transactions', AppState.transactions);
+      stor('kk_card_billings', AppState.cardBillings);
+
+      showToast('クラウドからデータを取得しました');
+      refreshActivePage();
+    } else {
+      await saveToFirestore();
+      showToast('クラウドにデータを保存しました');
+    }
+    updateSyncBadge('synced', currentUser.email.split('@')[0]);
+  } catch(e) {
+    console.warn('Firestore load error:', e);
+    updateSyncBadge('synced', currentUser.email.split('@')[0]);
+  }
+}
+
+function updateSyncBadge(state, label){
+  const badge = document.getElementById('sync-badge');
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!badge) return;
+  badge.className = `sync-badge ${state}`;
+  lbl.textContent = label || (state==='synced' ? '同期中' : '未連携');
+}
+
+function onSyncBadgeClick(){
+  if (!currentUser) {
+    skipLoginMode = false;
+    document.getElementById('login-screen').classList.add('show');
+  } else {
+    showConfirm(`${currentUser.email}\nログアウトしますか？`, () => {
+      auth.signOut().then(() => {
+        currentUser = null;
+        updateSyncBadge('offline', '未連携');
+        showToast('ログアウトしました');
+      });
+    });
+  }
+}
+
+initApp();
+</script>
+
+</body>
+</html>
