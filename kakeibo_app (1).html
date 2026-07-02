@@ -222,6 +222,14 @@
   .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-muted); }
   .sync-badge.synced .sync-dot { background: var(--sage); }
   .sync-badge.syncing .sync-dot { background: var(--gold); }
+  .reload-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--white);
+    font-size: 15px; color: var(--ink-soft); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  @keyframes spin-reload { to { transform: rotate(360deg); } }
+  .reload-btn.spin { animation: spin-reload 0.6s linear; }
 
   /* ===== コンテンツ共通 ===== */
   .content { padding: 18px 20px; }
@@ -635,10 +643,13 @@
     <div class="header-title-wrap">
       <h1 id="page-title">家計手帖</h1>
     </div>
-    <button class="sync-badge offline" id="sync-badge" onclick="onSyncBadgeClick()">
-      <span class="sync-dot" id="sync-dot"></span>
-      <span id="sync-label">未連携</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="reload-btn" id="reload-btn" onclick="manualReload()" title="最新版に更新">↺</button>
+      <button class="sync-badge offline" id="sync-badge" onclick="onSyncBadgeClick()">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-label">未連携</span>
+      </button>
+    </div>
   </div>
   <div class="month-selector" id="month-selector-wrap">
     <button onclick="changeMonth(-1)">‹</button>
@@ -1290,8 +1301,9 @@ function showToast(msg){
    ============================================================ */
 let _confirmCallback = null;
 
-function showConfirm(message, onConfirm){
+function showConfirm(message, onConfirm, okLabel){
   document.getElementById('confirm-message').textContent = message;
+  document.getElementById('confirm-ok-btn').textContent = okLabel || '削除する';
   _confirmCallback = onConfirm;
   document.getElementById('confirm-overlay').classList.add('show');
 }
@@ -1665,6 +1677,66 @@ function getPastMonths(ym, count){
 
 let _analysisSelectedCategory = null;
 
+/* ============================================================
+   月次予算（封筒管理用）
+   ============================================================ */
+function getMonthlyBudgets(ym){
+  // その月専用の予算設定。なければ前月から引き継ぎ、さらになければデフォルト
+  const stored = stor('kk_monthly_budgets') || {};
+  if (stored[ym]) return stored[ym];
+  // 前月を探す
+  const [y,m] = ym.split('-').map(Number);
+  const prev = new Date(y, m-2, 1);
+  const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
+  const prevStored = stored[prevYm];
+  if (prevStored) {
+    // 前月の予算をコピーして返す（まだ保存はしない）
+    return {...prevStored};
+  }
+  // どこにもなければデフォルトカテゴリ設定を使う
+  const defaults = {};
+  AppState.categories.forEach(c => { defaults[c.name] = c.budget || 0; });
+  return defaults;
+}
+
+function setMonthlyBudgets(ym, budgets){
+  const stored = stor('kk_monthly_budgets') || {};
+  stored[ym] = budgets;
+  stor('kk_monthly_budgets', stored);
+  if (currentUser) saveToFirestore();
+}
+
+function getEnvelopeBalance(ym, catName){
+  // 封筒残高 = 前月繰越 + 当月予算 - 当月実績
+  // 前月繰越 = 前月封筒残高（再帰）
+  // ただし初月（データなし）は0スタート
+  const [y,m] = ym.split('-').map(Number);
+  const prev = new Date(y, m-2, 1);
+  const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
+
+  const monthlyBudgets = getMonthlyBudgets(ym);
+  const budget = monthlyBudgets[catName] !== undefined ? monthlyBudgets[catName] : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
+  const summary = getMonthSummary(ym);
+  const actual = summary.byCategory[catName] || 0;
+
+  // 前月の繰越（過去データがある月まで遡る）
+  const hasPrevData = getTransactionsForMonth(prevYm).length > 0 || stor('kk_monthly_budgets')?.[prevYm];
+  const prevBalance = hasPrevData ? getEnvelopeBalance(prevYm, catName) : 0;
+
+  return prevBalance + budget - actual;
+}
+
+function getEnvelopesForMonth(ym){
+  return AppState.categories.map(cat => {
+    const monthlyBudgets = getMonthlyBudgets(ym);
+    const budget = monthlyBudgets[cat.name] !== undefined ? monthlyBudgets[cat.name] : cat.budget || 0;
+    const summary = getMonthSummary(ym);
+    const actual = summary.byCategory[cat.name] || 0;
+    const balance = getEnvelopeBalance(ym, cat.name);
+    return { name: cat.name, group: cat.group, budget, actual, balance };
+  }).filter(e => e.budget > 0 || e.actual > 0);
+}
+
 function renderAnalysis(){
   const ym = AppState.currentMonth;
   const summary = getMonthSummary(ym);
@@ -1700,8 +1772,57 @@ function renderAnalysis(){
   });
   const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
 
+  const envelopes = getEnvelopesForMonth(ym);
+  const totalEnvBalance = envelopes.reduce((a,e)=>a+e.balance, 0);
+  const maxEnvAbs = Math.max(1, ...envelopes.map(e=>Math.abs(e.balance)));
+  const monthlyBudgets = getMonthlyBudgets(ym);
+
   let html = `
-    <div class="kpi-grid">
+    <div class="section-title" style="margin-top:0">
+      <span class="label">封筒管理</span>
+      <span class="section-link" onclick="toggleEnvelopeEdit()">予算を編集</span>
+    </div>
+
+    <!-- 合計残高 -->
+    <div class="card" style="padding:16px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:12px;color:var(--gray-muted)">${monthLabel(ym)}の封筒残高合計</div>
+      <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700;color:${totalEnvBalance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(totalEnvBalance).replace('+','')}</div>
+    </div>
+
+    <!-- 封筒一覧 -->
+    <div class="card category-list" id="envelope-list">
+      ${envelopes.length === 0 ? '<div class="empty-hint">データがありません</div>' : envelopes.map(e => {
+        const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
+        const over = e.balance < 0;
+        return `
+          <div class="cat-item">
+            <div class="cat-item-top">
+              <span class="cat-name">${escapeHtml(e.name)}</span>
+              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')}</span>
+            </div>
+            <div style="font-size:11px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
+            <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
+          </div>`;
+      }).join('')}
+    </div>
+
+    <!-- 月次予算編集（折りたたみ） -->
+    <div id="envelope-edit-panel" style="display:none;margin-top:10px">
+      <div class="card category-list">
+        <div style="font-size:12px;color:var(--gray-muted);padding:12px 0 6px">${monthLabel(ym)}の予算（個別設定。変更しても他月に影響しません）</div>
+        ${envelopes.map(e => `
+          <div class="settings-row">
+            <div class="settings-row-top" style="margin-bottom:0">
+              <span style="font-size:13px;font-weight:700;flex:1">${escapeHtml(e.name)}</span>
+              <input type="number" class="settings-input-amt" style="width:110px;flex:none" value="${e.budget}"
+                onchange="updateMonthlyBudget('${escapeJs(ym)}','${escapeJs(e.name)}',this.value)">
+            </div>
+          </div>`).join('')}
+        <button class="settings-add-btn" onclick="saveMonthlyBudgets('${escapeJs(ym)}')">この月の予算を確定する</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" style="margin-top:18px">
       <div class="kpi-card">
         <div class="kpi-label">収入</div>
         <div class="kpi-value" style="font-size:22px">${fmtYen(summary.income)}</div>
@@ -1781,6 +1902,30 @@ function renderAnalysis(){
   document.getElementById('analysis-content').innerHTML = html;
   injectAnalysisStyles();
   runAiAnalysis(ym, summary, cardRows);
+}
+
+let _envelopeEditBudgets = {};
+
+function toggleEnvelopeEdit(){
+  const panel = document.getElementById('envelope-edit-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateMonthlyBudget(ym, catName, value){
+  const stored = stor('kk_monthly_budgets') || {};
+  if (!stored[ym]) stored[ym] = {...getMonthlyBudgets(ym)};
+  stored[ym][catName] = parseFloat(value) || 0;
+  stor('kk_monthly_budgets', stored);
+}
+
+function saveMonthlyBudgets(ym){
+  const stored = stor('kk_monthly_budgets') || {};
+  if (!stored[ym]) stored[ym] = {...getMonthlyBudgets(ym)};
+  stor('kk_monthly_budgets', stored);
+  if (currentUser) saveToFirestore();
+  showToast(`${monthLabel(ym)}の予算を確定しました`);
+  renderAnalysis();
 }
 
 function fmtYenShort(n){
@@ -2097,7 +2242,7 @@ function renderSettingsTabContent(){
 
 function renderCategoriesSettings(){
   const groups = ['変動費','固定費','貯蓄返済','投資保険'];
-  let html = '';
+  let html = `<div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は分析ページの「封筒管理 → 予算を編集」から変更できます。</div>`;
   groups.forEach(g => {
     const cats = AppState.categories.filter(c => c.group === g);
     html += `<div class="settings-group-label">${g}</div><div class="card settings-list">`;
@@ -2551,6 +2696,51 @@ function injectSettingsStyles(){
 /* ============================================================
    初期化
    ============================================================ */
+function manualReload(){
+  const btn = document.getElementById('reload-btn');
+  if (btn) { btn.classList.add('spin'); setTimeout(()=>btn.classList.remove('spin'), 600); }
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
+    setTimeout(() => location.reload(), 400);
+  } else {
+    location.reload(true);
+  }
+}
+
+function registerSW(){
+  if (!('serviceWorker' in navigator)) return;
+  // インラインSWをBlobで登録（外部ファイル不要）
+  const swCode = `
+const CACHE = 'kakeibo-v' + Date.now();
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    fetch(e.request).then(res => {
+      if (res && res.status === 200) {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
+});`;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  const url = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          showToast('アップデートがあります。更新ボタンを押してください ↺');
+        }
+      });
+    });
+  }).catch(()=>{});
+}
+
 function initApp(){
   loadLocalState();
   AppState.currentMonth = todayYM();
@@ -2558,6 +2748,7 @@ function initApp(){
   document.getElementById('tx-date').value = todayYMD();
   setupConfirmButtons();
   renderHome();
+  registerSW();
   initFirebase();
 }
 
@@ -2579,7 +2770,7 @@ function initFirebase(){
         loadFromFirestore();
       } else {
         currentUser = null;
-        document.getElementById('login-screen').classList.add('show');
+        showLoginScreen();
         updateSyncBadge('offline', '未連携');
       }
       document.getElementById('app-loading').style.display = 'none';
@@ -2604,6 +2795,18 @@ function showAuthTab(mode){
   document.getElementById('tab-signup').classList.toggle('active', mode==='signup');
   document.getElementById('auth-submit-btn').textContent = mode==='login' ? 'ログイン' : '新規登録';
   document.getElementById('login-error').style.display = 'none';
+}
+
+function showLoginScreen(){
+  const btn = document.getElementById('auth-submit-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'ログイン'; }
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.style.display = 'none';
+  const emailEl = document.getElementById('auth-email');
+  if (emailEl) emailEl.value = '';
+  const pwEl = document.getElementById('auth-password');
+  if (pwEl) pwEl.value = '';
+  document.getElementById('login-screen').classList.add('show');
 }
 
 function submitAuth(){
@@ -2653,6 +2856,7 @@ async function saveToFirestore(){
         kk_transactions: AppState.transactions,
         kk_card_billings: AppState.cardBillings,
         kk_income_actual: stor('kk_income_actual') || {},
+        kk_monthly_budgets: stor('kk_monthly_budgets') || {},
         updatedAt: Date.now()
       });
   } catch(e) { console.warn('Firestore save error:', e); }
@@ -2683,6 +2887,7 @@ async function loadFromFirestore(){
       AppState.transactions = cloudTx;
       AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
       if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
+      if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
 
       stor('kk_categories', AppState.categories);
       stor('kk_income_sources', AppState.incomeSources);
@@ -2716,7 +2921,7 @@ function updateSyncBadge(state, label){
 function onSyncBadgeClick(){
   if (!currentUser) {
     skipLoginMode = false;
-    document.getElementById('login-screen').classList.add('show');
+    showLoginScreen();
   } else {
     showConfirm(`${currentUser.email}\nログアウトしますか？`, () => {
       auth.signOut().then(() => {
@@ -2724,7 +2929,7 @@ function onSyncBadgeClick(){
         updateSyncBadge('offline', '未連携');
         showToast('ログアウトしました');
       });
-    });
+    }, 'ログアウト');
   }
 }
 
