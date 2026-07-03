@@ -1972,6 +1972,14 @@ function closeDrum(apply){
         renderSettingsTabContent();
       }
     }
+    if (_drumTargetField && _drumTargetField.startsWith('billing-offset-')) {
+      const idx = parseInt(_drumTargetField.replace('billing-offset-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].billingOffset = parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
     if (_drumTargetField && _drumTargetField.startsWith('income-day|')) {
       const [, ym, name] = _drumTargetField.split('|');
       const stored = stor('kk_income_actual') || {};
@@ -2109,13 +2117,15 @@ function renderAnalysis(){
 
   const shareColors = ['var(--terracotta)','var(--red-deficit)','var(--blue-card)','var(--purple-card)','var(--gold)','var(--sage)'];
 
-  // カード比較（先月＝実際に使った月の利用と請求）
-  const billingTargetYm = getPastMonths(ym, 2)[0];
+  // カード比較（各カードのbillingOffsetに基づく利用月）
   const cards = AppState.paymentMethods.filter(m => m.isCard);
   const cardRows = cards.map(card => {
-    const usage = getCardUsageForMonth(billingTargetYm, card.name);
-    const billed = getCardBillingForMonth(billingTargetYm, card.name);
-    return { name: card.name, usage, billed };
+    const cardBillingYm = getBillingTargetYm(ym, card);
+    const offset = card.billingOffset || 1;
+    const offsetLabel = ['翌月','翌々月','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'][offset-1] || '翌月';
+    const usage = getCardUsageForMonth(cardBillingYm, card.name);
+    const billed = getCardBillingForMonth(cardBillingYm, card.name);
+    return { name: card.name, usage, billed, cardBillingYm, offsetLabel };
   }).filter(c => c.usage > 0 || c.billed !== null);
 
   // 項目選択（デフォルトは支出最大カテゴリ）
@@ -2193,7 +2203,7 @@ function renderAnalysis(){
       ` : '<div class="empty-hint">項目を選択してください</div>'}
     </div>
 
-    <div class="section-title mt"><span class="label">カード請求 vs 利用累計（${monthLabel(billingTargetYm)}利用分）</span></div>
+    <div class="section-title mt"><span class="label">カード請求 vs 利用累計（各カードの請求月設定に基づく）</span></div>
     <div class="card-table">
       <div class="card-table-head"><span>カード</span><span>利用累計</span><span>請求額</span><span>差分</span></div>
       ${cardRows.length ? cardRows.map((c,i) => {
@@ -2201,7 +2211,10 @@ function renderAnalysis(){
         const ok = diff !== null && Math.abs(diff) < 1;
         return `
         <div class="card-table-row">
-          <span class="card-id"><span class="card-dot" style="background:${shareColors[i%shareColors.length]}"></span>${escapeHtml(c.name)}</span>
+          <span class="card-id" style="flex-direction:column;align-items:flex-start;gap:2px">
+            <span><span class="card-dot" style="background:${shareColors[i%shareColors.length]}"></span>${escapeHtml(c.name)}</span>
+            <span style="font-size:10px;color:var(--gray-muted);padding-left:14px">${monthLabel(c.cardBillingYm)}利用分</span>
+          </span>
           <span>${fmtYen(c.usage)}</span>
           <span>${c.billed!==null ? fmtYen(c.billed) : '—'}</span>
           ${diff!==null ? `<span class="diff-tag ${ok?'ok':'warn'}">${ok?'±0':fmtYenSigned(diff)}</span>` : '<span class="diff-tag warn">未確定</span>'}
@@ -2761,7 +2774,6 @@ function renderCardsUsageTab(){
 /* ── サブタブ2: 請求額入力 & 利用累計との差分 ── */
 function renderCardsBillingTab(){
   const ym = AppState.currentMonth;
-  const billingTargetYm = getPastMonths(ym, 2)[0]; // 先月（実際に使った月）
   const cards = AppState.paymentMethods.filter(m => m.isCard);
   const el = document.getElementById('cards-subtab-content');
 
@@ -2772,11 +2784,16 @@ function renderCardsBillingTab(){
 
   let html = `
     <div style="background:var(--cream-deep);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:16px;color:var(--ink-soft);line-height:1.6">
-      ここでは<strong>${monthLabel(billingTargetYm)}に使った分</strong>の請求額を入力します。カードは利用月と請求月がずれるため、先月分の利用額に対して実際の請求書の金額を入力して差を確認します。
-    </div>
-    <div class="section-title" style="margin-top:0"><span class="label">${monthLabel(billingTargetYm)}利用分の請求状況</span></div>`;
+      カードごとに設定した請求月の利用分を入力します。請求月は設定ページで変更できます。
+    </div>`;
   html += '<div style="display:flex;flex-direction:column;gap:12px">';
+
   cards.forEach(card => {
+    // このカードの請求対象月（billingOffsetに基づく）
+    const billingTargetYm = getBillingTargetYm(ym, card);
+    const offset = card.billingOffset || 1;
+    const offsetLabel = ['翌月','翌々月','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'][offset-1] || '翌月';
+
     const usage = getCardUsageForMonth(billingTargetYm, card.name);
     const billed = getCardBillingForMonth(billingTargetYm, card.name);
     const diff = billed !== null ? billed - usage : null;
@@ -2790,12 +2807,12 @@ function renderCardsBillingTab(){
             <div style="width:34px;height:22px;border-radius:5px;background:${card.color||'var(--terracotta)'}"></div>
             <div>
               <div style="font-size:16.5px;font-weight:700;cursor:pointer;color:var(--terracotta);text-decoration:underline dotted" onclick="openCardHistoryModal('${escapeJs(card.name)}','${billingTargetYm}')">${escapeHtml(card.name)} ›</div>
-              <div style="font-size:16px;color:var(--gray-muted)">${monthLabel(billingTargetYm)}の利用 ${txCount}件</div>
+              <div style="font-size:13px;color:var(--gray-muted)">${offsetLabel}請求 → ${monthLabel(billingTargetYm)}の利用分 ${txCount}件</div>
             </div>
           </div>
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:700">${fmtYen(usage)}</div>
-            <div style="font-size:16.5px;color:var(--gray-muted)">利用累計（都度入力）</div>
+            <div style="font-size:13px;color:var(--gray-muted)">利用累計</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:14px">
@@ -2954,11 +2971,13 @@ function renderIncomeSettings(){
         ${history.length ? `
           <div style="border-top:1px dashed var(--line);padding-top:10px">
             <div style="font-size:13px;color:var(--gray-muted);margin-bottom:6px">保存履歴</div>
-            ${history.slice().reverse().map(h => {
+            ${history.slice().reverse().map((h, ri) => {
               const d = new Date(h.savedAt);
-              return `<div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
+              const originalIdx = history.length - 1 - ri;
+              return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
                 <span style="color:var(--gray-muted)">${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}</span>
                 <span style="font-weight:700">${fmtYen(h.amount)}</span>
+                <button onclick="deleteIncomeEntry('${escapeJs(ym)}','${escapeJs(s.name)}',${originalIdx})" style="width:24px;height:24px;border-radius:50%;border:none;background:var(--cream-deep);color:var(--red-deficit);font-size:14px;cursor:pointer;flex-shrink:0">×</button>
               </div>`;
             }).join('')}
           </div>` : ''}
@@ -2988,6 +3007,38 @@ function renderIncomeSettings(){
 function getIncomeHistoryForMonth(ym, name){
   const stored = stor('kk_income_history') || {};
   return (stored[ym] && stored[ym][name]) ? stored[ym][name] : [];
+}
+
+function deleteIncomeEntry(ym, name, entryIdx){
+  const hist = stor('kk_income_history') || {};
+  const entries = (hist[ym] && hist[ym][name]) ? hist[ym][name] : [];
+  if (!entries[entryIdx]) return;
+
+  const h = entries[entryIdx];
+  const d = new Date(h.savedAt);
+  const label = `${name} ${fmtYen(h.amount)}（${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}）`;
+
+  showConfirm(`「${label}」を削除しますか？`, () => {
+    entries.splice(entryIdx, 1);
+    if (!hist[ym]) hist[ym] = {};
+    hist[ym][name] = entries;
+    stor('kk_income_history', hist);
+
+    // kk_income_actualも更新（最新値に同期）
+    const storedActual = stor('kk_income_actual') || {};
+    if (!storedActual[ym]) storedActual[ym] = {};
+    if (entries.length > 0) {
+      const latest = entries[entries.length - 1];
+      storedActual[ym][name] = { amount: latest.amount, day: latest.day };
+    } else {
+      delete storedActual[ym][name];
+    }
+    stor('kk_income_actual', storedActual);
+
+    if (currentUser) saveToFirestore();
+    showToast('収入履歴を削除しました');
+    renderSettingsTabContent();
+  }, '削除する');
 }
 
 function saveIncomeEntry(ym, name, inputIdx){
@@ -3061,8 +3112,10 @@ function addIncomeSource(){
 }
 
 function renderMethodsSettings(){
+  const billingOffsetLabels = ['翌月（1ヶ月後）','翌々月（2ヶ月後）','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'];
   let html = `<div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
   AppState.paymentMethods.forEach((m, idx) => {
+    const offset = m.billingOffset || 1;
     html += `
       <div class="settings-row settings-row-method">
         <div class="settings-row-method-top">
@@ -3074,8 +3127,12 @@ function renderMethodsSettings(){
         </div>
         ${m.isCard ? `
           <div class="settings-row-method-sub">
-            <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">引き落とし日</span>
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">引落日</span>
             <button type="button" class="drum-select-btn small" onclick="openBillingDayDrum(${idx})">${m.billingDay ? m.billingDay+'日' : '未設定'}</button>
+          </div>
+          <div class="settings-row-method-sub" style="margin-top:6px">
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">請求月</span>
+            <button type="button" class="drum-select-btn small" onclick="openBillingOffsetDrum(${idx})">${billingOffsetLabels[offset-1] || '翌月'}</button>
           </div>
         ` : ''}
       </div>`;
@@ -3100,6 +3157,22 @@ function openBillingDayDrum(idx){
   const values = Array.from({length:31}, (_,i) => String(i+1));
   _drumTargetField = 'billing-day-' + idx;
   buildDrumDOM('引き落とし日を選択', values, m.billingDay ? String(m.billingDay) : '25', v => v + '日');
+}
+function openBillingOffsetDrum(idx){
+  const m = AppState.paymentMethods[idx];
+  if (!m) return;
+  const values = ['1','2','3','4','5','6'];
+  const labels = ['翌月（1ヶ月後）','翌々月（2ヶ月後）','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'];
+  const cur = String(m.billingOffset || 1);
+  _drumTargetField = 'billing-offset-' + idx;
+  buildDrumDOM('請求月を選択', values, cur, v => labels[parseInt(v)-1]);
+}
+// 利用月YMから請求月YMを計算する関数
+function getBillingTargetYm(currentYm, card){
+  const offset = card.billingOffset || 1;
+  const [y,mo] = currentYm.split('-').map(Number);
+  const d = new Date(y, mo-1-offset, 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
 }
 function deleteMethod(idx){
   const target = AppState.paymentMethods[idx];
