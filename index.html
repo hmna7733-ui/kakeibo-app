@@ -1994,19 +1994,24 @@ let _analysisSelectedCategory = null;
    月次予算（封筒管理用）
    ============================================================ */
 function getMonthlyBudgets(ym){
-  // その月専用の予算設定。なければ前月から引き継ぎ、さらになければデフォルト
+  const resetYm = getEnvelopeResetYm();
   const stored = stor('kk_monthly_budgets') || {};
+
+  // その月に個別設定があればそれを使う
   if (stored[ym]) return stored[ym];
-  // 前月を探す
+
+  // 前月を探す（ただし基準年月以前の保存値は引き継がない）
   const [y,m] = ym.split('-').map(Number);
   const prev = new Date(y, m-2, 1);
   const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
-  const prevStored = stored[prevYm];
-  if (prevStored) {
-    // 前月の予算をコピーして返す（まだ保存はしない）
-    return {...prevStored};
+
+  // 前月が基準年月以前なら引き継がずデフォルトへ
+  if (!resetYm || prevYm > resetYm) {
+    const prevStored = stored[prevYm];
+    if (prevStored) return {...prevStored};
   }
-  // どこにもなければデフォルトカテゴリ設定を使う
+
+  // デフォルトカテゴリ設定を使う
   const defaults = {};
   AppState.categories.forEach(c => { defaults[c.name] = c.budget || 0; });
   return defaults;
@@ -2032,36 +2037,36 @@ function getEnvelopeBalance(ym, catName){
   const resetYm = getEnvelopeResetYm();
 
   const monthlyBudgets = getMonthlyBudgets(ym);
-  const budget = monthlyBudgets[catName] !== undefined ? monthlyBudgets[catName] : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
+  const budget = monthlyBudgets[catName] !== undefined
+    ? monthlyBudgets[catName]
+    : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
   const summary = getMonthSummary(ym);
   const actual = summary.byCategory[catName] || 0;
 
-  // 基準年月以前は繰越なし（その月単体で計算）
-  if (resetYm && ym <= resetYm) {
-    return budget - actual;
+  // ① 基準年月が設定されている場合
+  if (resetYm) {
+    // 基準年月以前（基準月を含む）は繰越なし
+    if (ym <= resetYm) return budget - actual;
+    // 基準年月の翌月以降：前月を繰越す
+    const [y,m] = ym.split('-').map(Number);
+    const prev = new Date(y, m-2, 1);
+    const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
+    const prevBalance = getEnvelopeBalance(prevYm, catName);
+    return prevBalance + budget - actual;
   }
 
-  // 基準年月が未設定の場合：データが何もない月は打ち切り（繰越0）
-  if (!resetYm) {
-    const hasData = getTransactionsForMonth(ym).length > 0 || actual > 0 || (stor('kk_monthly_budgets') || {})[ym];
-    if (!hasData && budget === ((AppState.categories.find(c=>c.name===catName)||{}).budget || 0)) {
-      // デフォルト予算で実績もない月はデータなしとみなす
-      const tx = AppState.transactions;
-      const oldest = tx.length > 0 ? tx.reduce((a,b) => a.date < b.date ? a : b).date.slice(0,7) : ym;
-      if (ym < oldest) return 0; // データより古い月はゼロ
-    }
-  }
+  // ② 基準年月が未設定の場合：最古トランザクション月から計算
+  const tx = AppState.transactions;
+  const oldestYm = tx.length > 0
+    ? tx.reduce((a,b) => a.date < b.date ? a : b).date.slice(0,7)
+    : ym;
 
-  // 前月の封筒残高を繰越す
+  // 最古月以前はゼロスタート
+  if (ym <= oldestYm) return budget - actual;
+
   const [y,m] = ym.split('-').map(Number);
   const prev = new Date(y, m-2, 1);
   const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
-
-  // 最古データより前の月はゼロ（無限遡及防止）
-  const tx = AppState.transactions;
-  const oldestYm = tx.length > 0 ? tx.reduce((a,b) => a.date < b.date ? a : b).date.slice(0,7) : ym;
-  if (prevYm < (resetYm || oldestYm)) return budget - actual;
-
   const prevBalance = getEnvelopeBalance(prevYm, catName);
   return prevBalance + budget - actual;
 }
