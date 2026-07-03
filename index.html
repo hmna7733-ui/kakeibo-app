@@ -2768,6 +2768,16 @@ function renderSettings(){
       ${tabs.map(t => `<button class="settings-tab ${t.id===_settingsTab?'active':''}" onclick="switchSettingsTab('${t.id}')">${t.label}</button>`).join('')}
     </div>
     <div id="settings-tab-content"></div>
+
+    <!-- 全データ削除 -->
+    <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--line)">
+      <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:12px;line-height:1.7">
+        ⚠️ 全データを削除すると、取引履歴・設定・収入履歴などすべてが消去され初期状態に戻ります。この操作は取り消せません。
+      </div>
+      <button onclick="deleteAllData()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid var(--red-deficit);background:white;color:var(--red-deficit);font-family:'Zen Maru Gothic',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+        🗑️ 全データを削除して初期状態に戻す
+      </button>
+    </div>
   `;
   document.getElementById('settings-content').innerHTML = html;
   injectSettingsStyles();
@@ -3576,6 +3586,20 @@ function updateSyncBadge(state, label){
   lbl.textContent = label || (state==='synced' ? '同期中' : '未連携');
 }
 
+/* ============================================================
+   全データクリア（ログアウト・初期化共通）
+   ============================================================ */
+const KK_STORAGE_KEYS = [
+  'kk_categories','kk_income_sources','kk_payment_methods',
+  'kk_accounts','kk_transactions','kk_card_billings',
+  'kk_income_actual','kk_income_history','kk_monthly_budgets',
+  'kk_savings_first','kk_envelope_reset_ym'
+];
+
+function clearAllLocalData(){
+  KK_STORAGE_KEYS.forEach(k => localStorage.removeItem(k));
+}
+
 function onSyncBadgeClick(){
   if (!currentUser) {
     skipLoginMode = false;
@@ -3583,12 +3607,37 @@ function onSyncBadgeClick(){
   } else {
     showConfirm(`${currentUser.email}\nログアウトしますか？`, () => {
       auth.signOut().then(() => {
+        // ログアウト時にlocalStorageのアプリデータを全クリア
+        clearAllLocalData();
         currentUser = null;
+        // AppStateもリセット
+        AppState.categories = [];
+        AppState.incomeSources = [];
+        AppState.paymentMethods = [];
+        AppState.accounts = [];
+        AppState.transactions = [];
+        AppState.cardBillings = {};
         updateSyncBadge('offline', '未連携');
         showToast('ログアウトしました');
+        showLoginScreen();
       });
     }, 'ログアウト');
   }
+}
+
+function deleteAllData(){
+  showConfirm(
+    'すべてのデータを削除して初期状態に戻します。\nこの操作は取り消せません。本当に実行しますか？',
+    async () => {
+      clearAllLocalData();
+      initNewUser();
+      // Firestoreにも空データを保存
+      if (currentUser) await saveToFirestore();
+      showToast('データを削除しました。初期状態に戻りました');
+      goToPage('home');
+    },
+    '削除する'
+  );
 }
 
 initApp();
