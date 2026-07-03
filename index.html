@@ -2294,13 +2294,16 @@ function renderEnvelopePage(){
         const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
         const over = e.balance < 0;
         return `
-          <div class="cat-item" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
-            <div class="cat-item-top">
+          <div class="cat-item">
+            <div class="cat-item-top" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
               <span class="cat-name">${catNameHtml(e.name)}</span>
               <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'};flex-shrink:0;white-space:nowrap">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
             </div>
             ${catDetailHtml(e.name)}
-            <div style="font-size:14px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <div style="font-size:14px;color:var(--gray-muted)">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
+              <button onclick="deleteCategoryFromEnvelope('${escapeJs(e.name)}')" style="font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid var(--red-deficit);background:white;color:var(--red-deficit);font-family:inherit;cursor:pointer;flex-shrink:0">削除</button>
+            </div>
             <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
           </div>`;
       }).join('')}
@@ -2415,6 +2418,21 @@ function closeEnvelopeResetDrum(){
 }
 
 /* ── 封筒月別履歴モーダル ── */
+function deleteCategoryFromEnvelope(catName){
+  showConfirm(
+    `「${catName}」を削除しますか？\n\n設定の項目からも削除されます。過去の記帳データは残りますが、封筒・分析への集計には影響します。`,
+    () => {
+      const idx = AppState.categories.findIndex(c => c.name === catName);
+      if (idx === -1) { showToast('項目が見つかりません'); return; }
+      AppState.categories.splice(idx, 1);
+      saveLocalState();
+      showToast(`「${catName}」を削除しました`);
+      renderEnvelopePage();
+    },
+    '削除する'
+  );
+}
+
 function openEnvelopeHistoryModal(catName){
   const currentYm = AppState.currentMonth;
   const resetYm = getEnvelopeResetYm();
