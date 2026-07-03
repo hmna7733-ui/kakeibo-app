@@ -367,9 +367,9 @@
   .cat-item { padding: 14px 0; border-bottom: 1px solid var(--cream-deep); }
   .cat-item:last-child { border-bottom: none; }
   .cat-item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; font-size: 15.5px; gap: 8px; }
-  .cat-name { font-weight: 700; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cat-name { font-weight: 700; flex: 1; min-width: 0; max-width: calc(100% - 120px); display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
   .cat-name-text { font-weight: 700; }
-  .cat-detail-text { font-size: 12px; color: var(--gray-muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .cat-detail-text { font-size: 12px; color: var(--gray-muted); font-weight: 400; white-space: normal; word-break: break-all; line-height: 1.4; }
   .cat-amount { font-variant-numeric: tabular-nums; text-align: right; flex-shrink: 0; white-space: nowrap; }
   .cat-amount .budget { color: var(--gray-muted); font-size: 15.5px; }
   .cat-bar-track { height: 7px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
