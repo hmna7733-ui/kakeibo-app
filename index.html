@@ -1092,6 +1092,12 @@ function loadLocalState(){
   // 以前は収入だけ別管理で「履歴」に出てこないバグがあったための恒久対応。毎回チェックし、
   // 未反映分があれば取り込む（重複防止チェック付きなので何度実行しても安全）
   migrateIncomeHistoryToTransactions();
+
+  // マイグレーション：ジャンル未設定の古い記帳に、確定したジャンルを一度だけ書き込む。
+  // 「項目名の一致」では絶対に判定しない（同名の収入項目と支出項目があると誤判定するため）。
+  // この機能が無かった頃の記帳は仕組み上すべて支出系（収入は別管理だった）なので、
+  // isIncomeフラグ→項目のグループの順だけで安全に判定できる。
+  backfillTransactionGenres();
 }
 
 // kk_income_history（設定›収入の保存履歴）の各月・各項目の最新値を、
@@ -1130,6 +1136,31 @@ function migrateIncomeHistoryToTransactions(){
     });
   });
 
+  if (changed) saveLocalState();
+  return changed;
+}
+
+// ジャンル未設定（genreフィールドが無い）の記帳に、確定した値を書き込んで永続化する。
+// 項目名だけでの推測は行わない。isIncomeフラグが立っていれば収入、それ以外は
+// 項目（カテゴリ）自身のグループだけを見て判定する（同名の収入項目があっても混同しない）。
+function backfillTransactionGenres(){
+  let changed = false;
+  AppState.transactions.forEach(t => {
+    if (t.genre && GENRES.includes(t.genre)) return; // すでに確定済み
+    let g;
+    if (t.isIncome) {
+      g = '収入';
+    } else {
+      const cat = AppState.categories.find(c => c.name === t.category);
+      const group = cat ? cat.group : null;
+      if (group === '貯蓄') g = '貯蓄';
+      else if (group === '返済') g = '返済';
+      else if (group === '投資保険') g = '投資';
+      else g = '支出';
+    }
+    t.genre = g;
+    changed = true;
+  });
   if (changed) saveLocalState();
   return changed;
 }
@@ -1207,11 +1238,12 @@ const GENRES = ['収入','支出','貯蓄','返済','投資'];
 const GENRE_LABELS = { 収入:'収入', 支出:'支出', 貯蓄:'先取り貯金', 返済:'返済', 投資:'投資・保険' };
 function genreLabel(genre){ return GENRE_LABELS[genre] || genre; }
 
-// 記帳ごとのジャンルを判定。tx.genreがあればそれを優先、無ければ項目のグループから推定（過去データ互換）
+// 記帳ごとのジャンルを判定。tx.genreが最優先（新規記帳は必ずこれが入る）。
+// 無い場合（機能追加前の古い記帳）はisIncomeフラグ→項目グループの順で判定するが、
+// 「項目名」だけでの判定は絶対に行わない（収入項目と同名の支出項目があると誤判定するため）。
 function txGenre(t){
   if (t.genre && GENRES.includes(t.genre)) return t.genre;
   if (t.isIncome) return '収入';
-  if (isIncomeCategory(t.category)) return '収入'; // 項目名が収入項目と一致する場合の保険
   const cat = AppState.categories.find(c => c.name === t.category);
   const group = cat ? cat.group : null;
   if (group === '貯蓄') return '貯蓄';
@@ -1233,9 +1265,10 @@ function getHistoryDisplayTxs(ym){
   return getTransactionsForMonth(ym);
 }
 
-// 項目名からジャンルを推定（分析画面などから特定項目で記帳を開くとき用）
+// 「設定›項目」の特定カテゴリ（AppState.categories配列の要素）からジャンルを判定する。
+// 呼び出し元は必ず項目（カテゴリ）配列の要素名を渡す想定なので、収入項目名との一致は見ない
+// （同名の収入項目があっても、ここは常にそのカテゴリ自身のグループだけで判定する）。
 function categoryGenre(catName){
-  if (isIncomeCategory(catName)) return '収入';
   const cat = AppState.categories.find(c => c.name === catName);
   const group = cat ? cat.group : null;
   if (group === '貯蓄') return '貯蓄';
@@ -1255,6 +1288,14 @@ function categoryOptionsForGenre(genre){
   }
   // 支出：貯蓄・返済グループを除いた項目
   return AppState.categories.filter(c => c.group !== '貯蓄' && c.group !== '返済').map(c => c.name);
+}
+
+// 項目（カテゴリ）の実績金額。収入項目と同じ名前でも絶対に混ざらないよう、
+// ジャンルが「収入」の記帳は必ず除外する（封筒・予算まわりの専用ヘルパー）
+function getCategoryActualForMonth(ym, catName){
+  return getTransactionsForMonth(ym)
+    .filter(t => t.category === catName && txGenre(t) !== '収入')
+    .reduce((a,t) => a + t.amount, 0);
 }
 
 function getMonthSummary(ym){
@@ -1504,6 +1545,10 @@ function genreCardHtml(genre, full, ym, opts){
     }
   }
 
+  const secondaryBtn = opts.trendMode
+    ? `<button type="button" class="hg-btn outline" onclick="openGenreTrendModal('${genre}')">推移<span class="hg-btn-icon">›</span></button>`
+    : `<button type="button" class="hg-btn outline" onclick="openHomeGenreHistoryModal('${genre}')">履歴<span class="hg-btn-icon">›</span></button>`;
+
   return `
     <div class="home-genre-card${full?' full':''}" style="--accent:${meta.accent};--accent-strong:${meta.color}">
       <div class="hg-label"><span>${meta.icon}</span><span>${genreLabel(genre)}</span></div>
@@ -1511,7 +1556,7 @@ function genreCardHtml(genre, full, ym, opts){
       ${deltaHtml}
       <div class="hg-actions">
         <button type="button" class="hg-btn" onclick="openHomeGenreTxModal('${genre}')"><span class="hg-btn-icon">＋</span>記帳</button>
-        <button type="button" class="hg-btn outline" onclick="openHomeGenreHistoryModal('${genre}')">履歴<span class="hg-btn-icon">›</span></button>
+        ${secondaryBtn}
       </div>
     </div>`;
 }
@@ -1569,9 +1614,53 @@ function openHomeGenreHistoryModal(genre){
   openHistoryModal(`${genreLabel(genre)}の履歴（${monthLabel(ym)}）`, txs);
 }
 
+// 分析ページのジャンルカードから「推移」：過去12ヶ月の月別推移（上が直近）
+function openGenreTrendModal(genre){
+  const ym = AppState.currentMonth;
+  const meta = GENRE_CARD_META[genre];
+  const months = getPastMonths(ym, 12).slice().reverse(); // 新しい月を上に
+
+  const rows = months.map(m => ({ ym: m, amount: getGenreTotals(m)[genre] }));
+  const total = rows.reduce((a,r)=>a+r.amount, 0);
+  const monthsWithData = rows.filter(r=>r.amount>0).length || 1;
+  const avg = Math.round(total / monthsWithData);
+  const maxAmt = Math.max(1, ...rows.map(r=>r.amount));
+
+  const bodyContent = `
+    <div style="display:flex;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px dashed var(--line)">
+      <div>
+        <div style="font-size:13px;color:var(--gray-muted)">12ヶ月合計</div>
+        <div style="font-size:18px;font-weight:700;font-family:'Shippori Mincho',serif">${fmtYen(total)}</div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--gray-muted)">月平均</div>
+        <div style="font-size:18px;font-weight:700;font-family:'Shippori Mincho',serif">${fmtYen(avg)}</div>
+      </div>
+    </div>
+    ${rows.map(r => {
+      const barW = Math.round((r.amount / maxAmt) * 100);
+      const isCurrent = r.ym === ym;
+      return `
+        <div style="padding:8px 0;border-bottom:1px solid var(--cream-deep)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:14px;font-weight:${isCurrent?'700':'500'};color:${isCurrent?meta.color:'var(--ink)'}">${monthLabel(r.ym)}${isCurrent?' ◀':''}</span>
+            <span style="font-size:15px;font-weight:700">${r.amount > 0 ? fmtYen(r.amount) : '—'}</span>
+          </div>
+          <div style="height:6px;background:var(--cream-deep);border-radius:100px;overflow:hidden">
+            <div style="height:100%;width:${barW}%;background:${meta.color};border-radius:100px"></div>
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+
+  document.getElementById('history-modal-title').textContent = `${genreLabel(genre)}の推移（直近12ヶ月）`;
+  document.getElementById('history-modal-body').innerHTML = bodyContent;
+  document.getElementById('history-modal-overlay').classList.add('show');
+}
+
 function openCategoryHistoryModal(catName){
   const ym = AppState.currentMonth;
-  const txs = getTransactionsForMonth(ym).filter(t => t.category === catName);
+  const txs = getTransactionsForMonth(ym).filter(t => t.category === catName && txGenre(t) !== '収入');
   openHistoryModal(`${catName}の明細（${monthLabel(ym)}）`, txs);
 }
 
@@ -2373,8 +2462,7 @@ function getEnvelopeBalance(ym, catName){
   const budget = monthlyBudgets[catName] !== undefined
     ? monthlyBudgets[catName]
     : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
-  const summary = getMonthSummary(ym);
-  const actual = summary.byCategory[catName] || 0;
+  const actual = getCategoryActualForMonth(ym, catName);
 
   // ① 基準年月が設定されている場合
   if (resetYm) {
@@ -2408,8 +2496,7 @@ function getEnvelopesForMonth(ym){
   return AppState.categories.map(cat => {
     const monthlyBudgets = getMonthlyBudgets(ym);
     const budget = monthlyBudgets[cat.name] !== undefined ? monthlyBudgets[cat.name] : cat.budget || 0;
-    const summary = getMonthSummary(ym);
-    const actual = summary.byCategory[cat.name] || 0;
+    const actual = getCategoryActualForMonth(ym, cat.name);
     const balance = getEnvelopeBalance(ym, cat.name);
     return { name: cat.name, group: cat.group, budget, actual, balance };
   }).filter(e => e.budget > 0 || e.actual > 0);
@@ -2458,7 +2545,7 @@ function renderAnalysis(){
 
   let html = `
     <div class="home-genre-grid" style="margin-top:0">
-      ${genreCardsGridHtml(ym, { showDelta: true })}
+      ${genreCardsGridHtml(ym, { showDelta: true, trendMode: true })}
     </div>
 
     <div class="section-title mt"><span class="label">収支の推移</span></div>
@@ -2731,8 +2818,7 @@ function openEnvelopeHistoryModal(catName){
   const rows = months.map(ym => {
     const monthlyBudgets = getMonthlyBudgets(ym);
     const budget = monthlyBudgets[catName] !== undefined ? monthlyBudgets[catName] : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
-    const summary = getMonthSummary(ym);
-    const actual = summary.byCategory[catName] || 0;
+    const actual = getCategoryActualForMonth(ym, catName);
     const balance = getEnvelopeBalance(ym, catName);
     const diff = budget - actual;
     return { ym, budget, actual, balance, diff };
@@ -2808,7 +2894,7 @@ function openGroupDetailModal(group){
     ${cats.length === 0 ? `<div class="empty-hint">「${group}」グループの項目がありません。設定から追加してください。</div>` :
       cats.map(c => {
         const actual = summary.byCategory[c.name] || 0;
-        const txs = getTransactionsForMonth(ym).filter(t => t.category === c.name);
+        const txs = getTransactionsForMonth(ym).filter(t => t.category === c.name && txGenre(t) !== '収入');
         return `
           <div style="border-bottom:1px solid var(--cream-deep);padding:12px 0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -4012,6 +4098,8 @@ async function loadFromFirestore(){
 
       // クラウドの収入履歴（旧方式）が未統合なら、ここでも記帳データへ取り込む
       migrateIncomeHistoryToTransactions();
+      // クラウド側のデータにもジャンル未設定の記帳があれば、ここで確定させる
+      backfillTransactionGenres();
 
       stor('kk_categories', AppState.categories);
       stor('kk_income_sources', AppState.incomeSources);
