@@ -311,6 +311,96 @@
   }
   .section-link { font-size: 15px; color: var(--terracotta); font-weight: 700; cursor: pointer; }
 
+  /* ===== ホーム：ジャンル別カード ===== */
+  .home-genre-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0 0;
+  }
+  .home-genre-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 0 var(--line);
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .home-genre-card::before {
+    content: "";
+    position: absolute;
+    top: -24px; right: -24px;
+    width: 70px; height: 70px;
+    background: var(--accent, var(--terracotta-soft));
+    border-radius: 50%;
+    opacity: 0.3;
+  }
+  .home-genre-card.full { grid-column: span 2; padding: 20px; }
+  .hg-label {
+    font-size: 12px; color: var(--gray-muted);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+    position: relative; z-index: 1;
+  }
+  .hg-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 24px; font-weight: 700;
+    position: relative; z-index: 1;
+    margin-bottom: 12px;
+  }
+  .hg-value.big { font-size: 30px; }
+  .hg-delta {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 100px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+  .hg-delta.up { background: var(--sage-soft); color: var(--sage); }
+  .hg-delta.down { background: rgba(181,72,58,0.12); color: var(--red-deficit); }
+  .hg-actions {
+    display: flex;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+    margin-top: 2px;
+  }
+  .hg-btn {
+    flex: 1;
+    padding: 10px 6px;
+    border-radius: 100px;
+    border: none;
+    background: var(--accent-strong, var(--terracotta));
+    color: #fff;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    box-shadow: 0 3px 9px rgba(58,51,43,0.16);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hg-btn:active { transform: scale(0.95); box-shadow: 0 1px 4px rgba(58,51,43,0.14); }
+  .hg-btn.outline {
+    background: rgba(255,255,255,0.6);
+    border: 1.4px solid var(--accent-strong, var(--line));
+    color: var(--accent-strong, var(--ink-soft));
+    box-shadow: none;
+  }
+  .hg-btn-icon { font-size: 12px; line-height: 1; }
+
+
   /* ===== カード共通 ===== */
   .card {
     background: var(--white);
@@ -719,26 +809,8 @@
       </div>
     </div>
 
-    <!-- 先取り貯金 -->
-    <div class="savings-first-card" id="savings-first-card">
-      <div class="savings-first-label">
-        <span style="font-size:16px">🏦</span>
-        <span>先取り貯金</span>
-        <span class="savings-notice" id="savings-notice"></span>
-      </div>
-      <button class="savings-first-btn-open" onclick="openSavingsTxModal()">＋ 先取り貯金を記帳する</button>
-      <div id="savings-first-history"></div>
-    </div>
-
-    <!-- 今月の収入 -->
-    <div class="savings-first-card" style="border-left-color:var(--terracotta)">
-      <div class="savings-first-label" style="color:var(--terracotta)">
-        <span style="font-size:15px">💰</span>
-        <span style="color:var(--terracotta)">今月の収入</span>
-      </div>
-      <button class="savings-first-btn-open" style="border-color:var(--terracotta-soft);background:rgba(193,104,63,0.08);color:var(--terracotta)" onclick="goToIncomeSettings()">＋ 収入を入力する（設定 › 収入）</button>
-      <div id="income-history"></div>
-    </div>
+    <!-- ジャンル別カード：収入・支出・貯蓄（大）・投資・返済 -->
+    <div class="home-genre-grid" id="home-genre-cards"></div>
 
     <div class="section-title">
       <span class="label">項目別の内訳</span>
@@ -754,13 +826,6 @@
     </div>
     <div class="card category-list" id="home-card-list">
       <div class="empty-hint">データがありません</div>
-    </div>
-
-    <div class="section-title">
-      <span class="label">最近の記帳</span>
-    </div>
-    <div class="card category-list" id="home-recent-tx">
-      <div class="empty-hint">記帳がありません</div>
     </div>
   </div>
 </div>
@@ -836,6 +901,10 @@
     <div class="form-field">
       <label>日付</label>
       <input type="date" id="tx-date">
+    </div>
+    <div class="form-field">
+      <label>ジャンル</label>
+      <button type="button" class="drum-select-btn" id="tx-genre-trigger" onclick="openTxFieldDrum('genre')">選択してください</button>
     </div>
     <div class="form-field">
       <label>金額</label>
@@ -1018,6 +1087,51 @@ function loadLocalState(){
     AppState.cardBillings = buildCardBillingsFromHistorical();
     saveLocalState();
   }
+
+  // マイグレーション：設定›収入の保存履歴（kk_income_history）を通常の記帳（収入ジャンル）へ統合
+  // 以前は収入だけ別管理で「履歴」に出てこないバグがあったための恒久対応。毎回チェックし、
+  // 未反映分があれば取り込む（重複防止チェック付きなので何度実行しても安全）
+  migrateIncomeHistoryToTransactions();
+}
+
+// kk_income_history（設定›収入の保存履歴）の各月・各項目の最新値を、
+// 通常の記帳（AppState.transactions、ジャンル＝収入）として取り込む
+function migrateIncomeHistoryToTransactions(){
+  const hist = stor('kk_income_history') || {};
+  if (!hist || Object.keys(hist).length === 0) return false;
+
+  let changed = false;
+  Object.keys(hist).forEach(ym => {
+    const byName = hist[ym] || {};
+    const parts = ym.split('-');
+    if (parts.length !== 2) return;
+    const [y, m] = parts;
+    Object.keys(byName).forEach(name => {
+      const entries = byName[name] || [];
+      if (entries.length === 0) return;
+      const latest = entries[entries.length - 1];
+      if (!latest || !latest.amount || latest.amount <= 0) return;
+      const day = (latest.day && latest.day >= 1 && latest.day <= 31)
+        ? latest.day
+        : (latest.savedAt ? new Date(latest.savedAt).getDate() : 1);
+      const date = `${y}-${pad2(parseInt(m,10))}-${pad2(day)}`;
+      const already = AppState.transactions.some(t =>
+        txGenre(t) === '収入' && t.category === name && t.date === date && Math.round(t.amount) === Math.round(latest.amount)
+      );
+      if (!already) {
+        AppState.transactions.push({
+          id: nextTxId(),
+          date, amount: latest.amount, category: name, method: '収入', memo: '',
+          genre: '収入', isIncome: true,
+          createdAt: latest.savedAt || Date.now(),
+        });
+        changed = true;
+      }
+    });
+  });
+
+  if (changed) saveLocalState();
+  return changed;
 }
 
 let _saveToFirestoreTimer = null;
@@ -1084,6 +1198,64 @@ function isIncomeCategory(catName){
   return AppState.incomeSources.some(s => s.name === catName);
 }
 
+/* ============================================================
+   ジャンル（収入・支出・貯蓄・返済・投資）
+   ============================================================ */
+const GENRES = ['収入','支出','貯蓄','返済','投資'];
+
+// 表示用ラベル（内部のジャンル値／項目グループ名はそのまま。表示名だけ変更）
+const GENRE_LABELS = { 収入:'収入', 支出:'支出', 貯蓄:'先取り貯金', 返済:'返済', 投資:'投資・保険' };
+function genreLabel(genre){ return GENRE_LABELS[genre] || genre; }
+
+// 記帳ごとのジャンルを判定。tx.genreがあればそれを優先、無ければ項目のグループから推定（過去データ互換）
+function txGenre(t){
+  if (t.genre && GENRES.includes(t.genre)) return t.genre;
+  if (t.isIncome) return '収入';
+  const cat = AppState.categories.find(c => c.name === t.category);
+  const group = cat ? cat.group : null;
+  if (group === '貯蓄') return '貯蓄';
+  if (group === '返済') return '返済';
+  if (group === '投資保険') return '投資';
+  return '支出';
+}
+
+// 指定した月のジャンル別合計
+function getGenreTotals(ym){
+  const txs = getTransactionsForMonth(ym);
+  const totals = { 収入: 0, 支出: 0, 貯蓄: 0, 返済: 0, 投資: 0 };
+  txs.forEach(t => { totals[txGenre(t)] += t.amount; });
+  return totals;
+}
+
+// 履歴ページ表示用（収入も含め、すべての記帳はAppState.transactionsに統一されている）
+function getHistoryDisplayTxs(ym){
+  return getTransactionsForMonth(ym);
+}
+
+// 項目名からジャンルを推定（分析画面などから特定項目で記帳を開くとき用）
+function categoryGenre(catName){
+  if (isIncomeCategory(catName)) return '収入';
+  const cat = AppState.categories.find(c => c.name === catName);
+  const group = cat ? cat.group : null;
+  if (group === '貯蓄') return '貯蓄';
+  if (group === '返済') return '返済';
+  if (group === '投資保険') return '投資';
+  return '支出';
+}
+
+// ジャンルに応じた「項目」ドラムの選択肢
+function categoryOptionsForGenre(genre){
+  if (genre === '収入') return AppState.incomeSources.map(s => s.name);
+  if (genre === '貯蓄') return AppState.categories.filter(c => c.group === '貯蓄').map(c => c.name);
+  if (genre === '返済') return AppState.categories.filter(c => c.group === '返済').map(c => c.name);
+  if (genre === '投資') {
+    const inv = AppState.categories.filter(c => c.group === '投資保険').map(c => c.name);
+    return inv.length ? inv : AppState.categories.map(c => c.name);
+  }
+  // 支出：貯蓄・返済グループを除いた項目
+  return AppState.categories.filter(c => c.group !== '貯蓄' && c.group !== '返済').map(c => c.name);
+}
+
 function getMonthSummary(ym){
   const txs = getTransactionsForMonth(ym);
 
@@ -1091,6 +1263,7 @@ function getMonthSummary(ym){
   const catGroupMap = {};
   AppState.categories.forEach(c => { catGroupMap[c.name] = c.group || '変動費'; });
 
+  let income = 0;    // 収入（ジャンル＝収入の記帳、設定›収入からの記帳もすべて含む）
   let expense = 0;   // 変動費・固定費・投資保険など
   let savings = 0;   // 貯蓄グループ
   let repayment = 0; // 返済グループ
@@ -1098,7 +1271,7 @@ function getMonthSummary(ym){
 
   txs.forEach(t => {
     byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
-    if (t.isIncome) return; // 収入フラグはスキップ
+    if (t.isIncome || txGenre(t) === '収入') { income += t.amount; return; }
     const group = catGroupMap[t.category] || '変動費';
     if (group === '貯蓄') {
       savings += t.amount;
@@ -1108,15 +1281,6 @@ function getMonthSummary(ym){
       expense += t.amount;
     }
   });
-
-  // 収入：kk_income_historyを優先、なければkk_income_actual
-  const incomeFromHistory = calcIncomeFromHistory(ym);
-  const incomeActual = getIncomeActualForMonth(ym);
-  const incomeFromActual = Object.values(incomeActual).reduce((a,b) => {
-    const v = typeof b === 'object' ? (b.amount || 0) : (b || 0);
-    return a + v;
-  }, 0);
-  const income = incomeFromHistory > 0 ? incomeFromHistory : incomeFromActual;
 
   const totalSpend = expense + savings + repayment;
   const budgetTotal = AppState.categories.reduce((a,c)=>a+(c.budget||0), 0);
@@ -1253,9 +1417,8 @@ function renderHome(){
   document.getElementById('home-income').textContent = fmtYen(prevSummary.income);
   document.getElementById('home-expense').textContent = fmtYen(summary.totalSpend);
 
-  // 先取り貯金・収入の表示
-  renderSavingsFirst(ym);
-  renderIncomeHistory(ym);
+  // ジャンル別カード（収入・支出・貯蓄・投資・返済）
+  renderHomeGenreCards(ym);
 
   const catListEl = document.getElementById('home-category-list');
   const sortedCats = AppState.categories
@@ -1291,8 +1454,8 @@ function renderHome(){
     const diff = billed !== null ? (billed - usage) : null;
     let diffHtml = '<span class="budget">未確定</span>';
     if (diff !== null) {
-      const ok = Math.abs(diff) < 1;
-      diffHtml = `<span style="color:${ok?'var(--sage)':'var(--red-deficit)'};font-weight:700">${ok?'差 ±0':'差 '+fmtYenSigned(diff)}</span>`;
+      const ok = Math.abs(diff) <= 100;
+      diffHtml = `<span style="color:${ok?'var(--sage)':'var(--red-deficit)'};font-weight:700">${ok?'差 一致':'差 '+fmtYenSigned(diff)}</span>`;
     }
     return `
       <div class="cat-item" style="cursor:pointer" onclick="openCardHistoryModal('${escapeJs(card.name)}')">
@@ -1305,122 +1468,88 @@ function renderHome(){
   }).filter(Boolean);
 
   cardListEl.innerHTML = cardRows.length ? cardRows.join('') : '<div class="empty-hint">この月のカード利用はありません</div>';
-
-  const recentEl = document.getElementById('home-recent-tx');
-  const recent = getTransactionsForMonth(ym).slice().sort((a,b)=> b.date.localeCompare(a.date) || b.createdAt-a.createdAt).slice(0,6);
-  if (recent.length === 0) {
-    recentEl.innerHTML = '<div class="empty-hint">記帳がありません</div>';
-  } else {
-    recentEl.innerHTML = recent.map(t => `
-      <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
-        <div class="cat-item-top">
-          <span class="cat-name">${catNameHtml(t.category)}</span>
-          <span class="cat-amount">${fmtYen(t.amount)}</span>
-        </div>
-        ${catDetailHtml(t.category)}
-        <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
-      </div>`).join('');
-  }
 }
 
 /* ============================================================
-   先取り貯金
+   ジャンル別カード（収入・支出・先取り貯金・投資保険・返済）
+   ホーム／分析ページ共通のカード生成ロジック
    ============================================================ */
+const GENRE_CARD_META = {
+  '収入': { icon:'💰', accent:'var(--terracotta-soft)', color:'var(--terracotta)' },
+  '支出': { icon:'🧾', accent:'var(--red-soft)', color:'var(--ink)' },
+  '貯蓄': { icon:'🏦', accent:'var(--sage-soft)', color:'var(--sage-deep)' },
+  '投資': { icon:'📈', accent:'var(--gold-soft)', color:'var(--gold)' },
+  '返済': { icon:'💳', accent:'var(--red-soft)', color:'var(--red-deficit)' },
+};
+// 増加が「良いこと」かどうか（先月比バッジの色分けに使用）
+const GENRE_INCREASE_IS_GOOD = { '収入': true, '貯蓄': true, '投資': true, '支出': false, '返済': false };
 
-function renderSavingsFirst(ym){
-  const noticeEl = document.getElementById('savings-notice');
-  const historyEl = document.getElementById('savings-first-history');
+function genreCardHtml(genre, full, ym, opts){
+  opts = opts || {};
+  const meta = GENRE_CARD_META[genre];
+  const totals = getGenreTotals(ym);
 
-  const today = new Date();
-  const [y,m] = ym.split('-').map(Number);
-  const isCurrentMonth = today.getFullYear()===y && today.getMonth()+1===m;
-  const isMonthStart = today.getDate() <= 5;
-  if (noticeEl) {
-    noticeEl.textContent = (isCurrentMonth && isMonthStart) ? '💰 月初に貯金！' : '';
+  let deltaHtml = '';
+  if (opts.showDelta) {
+    const prevMonths = getPastMonths(ym, 2);
+    const prevYm = prevMonths[0];
+    const prevTotals = getGenreTotals(prevYm);
+    const delta = totals[genre] - prevTotals[genre];
+    if (totals[genre] !== 0 || prevTotals[genre] !== 0) {
+      const isGood = GENRE_INCREASE_IS_GOOD[genre] ? delta >= 0 : delta <= 0;
+      deltaHtml = `<div class="hg-delta ${isGood?'up':'down'}">先月比 ${fmtYenSigned(delta)}</div>`;
+    }
   }
 
-  if (!historyEl) return;
-
-  // 「貯蓄」グループの今月の記帳を履歴として表示
-  const savingsCats = new Set(AppState.categories.filter(c=>c.group==='貯蓄').map(c=>c.name));
-  const txs = getTransactionsForMonth(ym)
-    .filter(t => savingsCats.has(t.category))
-    .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
-
-  const total = txs.reduce((a,t)=>a+t.amount, 0);
-
-  if (txs.length === 0) {
-    historyEl.innerHTML = `<div style="font-size:14px;color:var(--gray-muted);padding:4px 0">まだ先取り貯金の記帳がありません</div>`;
-  } else {
-    historyEl.innerHTML = `
-      <div style="font-size:14px;font-weight:700;color:var(--sage-deep);margin-bottom:8px">
-        合計 ${fmtYen(total)}（${txs.length}件）
+  return `
+    <div class="home-genre-card${full?' full':''}" style="--accent:${meta.accent};--accent-strong:${meta.color}">
+      <div class="hg-label"><span>${meta.icon}</span><span>${genreLabel(genre)}</span></div>
+      <div class="hg-value${full?' big':''}" style="color:${meta.color}">${fmtYen(totals[genre])}</div>
+      ${deltaHtml}
+      <div class="hg-actions">
+        <button type="button" class="hg-btn" onclick="openHomeGenreTxModal('${genre}')"><span class="hg-btn-icon">＋</span>記帳</button>
+        <button type="button" class="hg-btn outline" onclick="openHomeGenreHistoryModal('${genre}')">履歴<span class="hg-btn-icon">›</span></button>
       </div>
-      ${txs.map(t => `
-        <div class="cat-item" style="cursor:pointer;padding:10px 0" onclick="closeHistoryModal();openTxModal('${t.id}')">
-          <div class="cat-item-top">
-            <span class="cat-name">${catNameHtml(t.category)}</span>
-            <span class="cat-amount">${fmtYen(t.amount)}</span>
-          </div>
-          ${catDetailHtml(t.category)}
-          <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
-        </div>`).join('')}`;
-  }
+    </div>`;
 }
 
-function renderIncomeHistory(ym){
-  const histEl = document.getElementById('income-history');
-  if (!histEl) return;
-
-  // 全収入項目の保存履歴をまとめて表示
-  const allEntries = [];
-  AppState.incomeSources.forEach(s => {
-    const hist = getIncomeHistoryForMonth(ym, s.name);
-    hist.forEach(h => allEntries.push({ ...h, name: s.name }));
-  });
-  allEntries.sort((a,b) => b.savedAt - a.savedAt);
-
-  const total = allEntries.reduce((a,h)=>a+h.amount, 0);
-
-  if (allEntries.length === 0) {
-    histEl.innerHTML = `<div style="font-size:14px;color:var(--gray-muted);padding:4px 0">まだ収入が入力されていません</div>`;
-  } else {
-    histEl.innerHTML = `
-      <div style="font-size:14px;font-weight:700;color:var(--terracotta);margin-bottom:8px">
-        合計 ${fmtYen(total)}（${allEntries.length}件）
-      </div>
-      ${allEntries.map(h => {
-        const d = new Date(h.savedAt);
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--cream-deep)">
-          <div>
-            <div style="font-size:14px;font-weight:700">${escapeHtml(h.name)}</div>
-            <div style="font-size:13px;color:var(--gray-muted)">${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}</div>
-          </div>
-          <div style="font-size:15px;font-weight:700">${fmtYen(h.amount)}</div>
-        </div>`;
-      }).join('')}`;
-  }
+function genreCardsGridHtml(ym, opts){
+  return [
+    genreCardHtml('収入', false, ym, opts),
+    genreCardHtml('支出', false, ym, opts),
+    genreCardHtml('貯蓄', true, ym, opts),
+    genreCardHtml('投資', false, ym, opts),
+    genreCardHtml('返済', false, ym, opts),
+  ].join('');
 }
 
-function openIncomeTxModal(){
-  // 収入記帳ボタンは設定の収入タブへ遷移する形に変更
-  goToIncomeSettings();
+function renderHomeGenreCards(ym){
+  const el = document.getElementById('home-genre-cards');
+  if (!el) return;
+  el.innerHTML = genreCardsGridHtml(ym, { showDelta: false });
 }
 
-function openSavingsTxModal(){
-  const savingsCats = AppState.categories.filter(c=>c.group==='貯蓄').map(c=>c.name);
-  if (savingsCats.length === 0) {
-    showToast('設定に「貯蓄」グループの項目がありません');
+// ジャンルカードから「記帳」：記帳モーダルを開く（ジャンルは固定・変更不可）
+function openHomeGenreTxModal(genre){
+  const catOptions = categoryOptionsForGenre(genre);
+  if (catOptions.length === 0) {
+    if (genre === '収入') {
+      showToast('設定の「収入」から項目を追加してください');
+    } else {
+      showToast(`設定に「${genreLabel(genre)}」の項目がありません`);
+    }
     return;
   }
-  const cashMethod = AppState.paymentMethods.find(m=>m.name==='現金');
-  _txCategoryMode = 'savings'; // 貯蓄限定モード
-  _txIsIncome = false;
-  _selectedTxCategory = savingsCats[0];
-  _selectedTxMethod = cashMethod ? '現金' : (AppState.paymentMethods[0]?.name || null);
+  const cashMethod = AppState.paymentMethods.find(m => m.name === '現金');
 
   AppState.editingTxId = null;
-  document.getElementById('tx-modal-title').textContent = '先取り貯金を記帳';
+  _selectedTxGenre = genre;
+  _txGenreLocked = true;
+  _txIsIncome = (genre === '収入');
+  _selectedTxCategory = catOptions[0];
+  _selectedTxMethod = cashMethod ? '現金' : (AppState.paymentMethods[0]?.name || null);
+
+  document.getElementById('tx-modal-title').textContent = `${genreLabel(genre)}を記帳`;
   document.getElementById('tx-date').value = todayYMD();
   document.getElementById('tx-amount').value = '';
   document.getElementById('tx-memo').value = '';
@@ -1428,6 +1557,13 @@ function openSavingsTxModal(){
   document.getElementById('tx-submit-btn').textContent = '記帳する';
   updateTxFieldTriggerLabels();
   document.getElementById('tx-modal-overlay').classList.add('show');
+}
+
+// ジャンルカードから「履歴」：今月のそのジャンルの記帳一覧（新しい順・タップで編集）
+function openHomeGenreHistoryModal(genre){
+  const ym = AppState.currentMonth;
+  const txs = getHistoryDisplayTxs(ym).filter(t => txGenre(t) === genre);
+  openHistoryModal(`${genreLabel(genre)}の履歴（${monthLabel(ym)}）`, txs);
 }
 
 function openCategoryHistoryModal(catName){
@@ -1457,15 +1593,21 @@ function openHistoryModal(title, txs){
       <div style="font-size:14px;color:var(--gray-muted);padding:0 0 12px;border-bottom:1px dashed var(--line);margin-bottom:4px">
         合計 <strong style="color:var(--ink);font-size:16px">${fmtYen(total)}</strong>（${sorted.length}件）
       </div>
-      ${sorted.map(t => `
-        <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+      ${sorted.map(t => {
+        const isIncomeHistoryEntry = typeof t.id === 'string' && t.id.startsWith('inc_');
+        const tapAction = isIncomeHistoryEntry
+          ? `closeHistoryModal();showToast('収入は設定 › 収入から編集できます');goToIncomeSettings();`
+          : `openTxModal('${t.id}')`;
+        return `
+        <div class="cat-item" style="cursor:pointer" onclick="${tapAction}">
           <div class="cat-item-top">
             <span class="cat-name">${catNameHtml(t.category)}</span>
             <span class="cat-amount">${fmtYen(t.amount)}</span>
           </div>
           ${catDetailHtml(t.category)}
           <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     `;
   }
   document.getElementById('history-modal-overlay').classList.add('show');
@@ -1495,13 +1637,30 @@ function escapeHtml(s){
    ============================================================ */
 let _selectedTxCategory = null;
 let _selectedTxMethod = null;
+let _selectedTxGenre = '支出';
+let _txGenreLocked = false; // ホームのジャンルカードから開いた時はジャンル変更不可
 let _txIsIncome = false;
-let _txCategoryMode = 'all'; // 'all' | 'savings' | 'income' | 'specific'
+let _txCategoryMode = 'all'; // 互換用（未使用箇所が参照してもエラーにならないよう保持）
 let _txCategoryFixed = null; // 特定カテゴリ固定モード用
 
 function updateTxFieldTriggerLabels(){
+  const genreBtn = document.getElementById('tx-genre-trigger');
   const catBtn = document.getElementById('tx-category-trigger');
   const methodBtn = document.getElementById('tx-method-trigger');
+  if (genreBtn) {
+    genreBtn.textContent = _selectedTxGenre ? genreLabel(_selectedTxGenre) : '選択してください';
+    genreBtn.classList.toggle('empty', !_selectedTxGenre);
+    if (_txGenreLocked) {
+      genreBtn.classList.add('locked');
+      genreBtn.style.opacity = '0.6';
+      genreBtn.style.pointerEvents = 'none';
+    } else {
+      genreBtn.classList.remove('locked');
+      genreBtn.style.opacity = '';
+      genreBtn.style.pointerEvents = '';
+    }
+    genreBtn.onclick = () => openTxFieldDrum('genre');
+  }
   if (catBtn) {
     catBtn.textContent = _selectedTxCategory || '選択してください';
     catBtn.classList.toggle('empty', !_selectedTxCategory);
@@ -1517,18 +1676,14 @@ function updateTxFieldTriggerLabels(){
 
 function openTxFieldDrum(field){
   let values, title, currentVal;
-  if (field === 'category') {
-    if (_txCategoryMode === 'savings') {
-      values = AppState.categories.filter(c => c.group === '貯蓄').map(c => c.name);
-      title = '貯蓄項目を選択';
-    } else if (_txCategoryMode === 'income') {
-      values = AppState.incomeSources.map(s => s.name);
-      title = '収入項目を選択';
-    } else {
-      // 通常：全カテゴリ
-      values = AppState.categories.map(c => c.name);
-      title = '項目を選択';
-    }
+  if (field === 'genre') {
+    if (_txGenreLocked) return; // ジャンル固定時は変更不可
+    values = GENRES;
+    title = 'ジャンルを選択';
+    currentVal = _selectedTxGenre;
+  } else if (field === 'category') {
+    values = categoryOptionsForGenre(_selectedTxGenre);
+    title = _selectedTxGenre ? `${genreLabel(_selectedTxGenre)}の項目を選択` : '項目を選択';
     currentVal = _selectedTxCategory;
   } else {
     values = AppState.paymentMethods.map(m => m.name);
@@ -1540,20 +1695,22 @@ function openTxFieldDrum(field){
     return;
   }
   _drumTargetField = 'tx-' + field;
-  buildDrumDOM(title, values, currentVal || values[0]);
+  const formatter = field === 'genre' ? genreLabel : null;
+  buildDrumDOM(title, values, currentVal || values[0], formatter);
 }
 
 function openTxModal(txId){
   AppState.editingTxId = txId || null;
-  _txIsIncome = false;
-  _txCategoryMode = 'all'; // 通常記帳：全カテゴリ
-  const expenseCats = AppState.categories.map(c=>c.name);
   const methods = AppState.paymentMethods.map(m=>m.name);
 
   let tx = null;
   if (txId) {
     tx = AppState.transactions.find(t => t.id === txId);
   }
+
+  _txGenreLocked = false;
+  _selectedTxGenre = tx ? txGenre(tx) : '支出';
+  _txIsIncome = _selectedTxGenre === '収入';
 
   document.getElementById('tx-modal-title').textContent = tx ? '記録を編集' : '記帳する';
   document.getElementById('tx-date').value = tx ? tx.date : todayYMD();
@@ -1562,7 +1719,8 @@ function openTxModal(txId){
   document.getElementById('tx-delete-btn').style.display = tx ? 'block' : 'none';
   document.getElementById('tx-submit-btn').textContent = tx ? '更新する' : '記帳する';
 
-  _selectedTxCategory = tx ? tx.category : (expenseCats[0] || null);
+  const catOptions = categoryOptionsForGenre(_selectedTxGenre);
+  _selectedTxCategory = tx ? tx.category : (catOptions[0] || null);
   _selectedTxMethod = tx ? tx.method : (methods[0] || null);
   updateTxFieldTriggerLabels();
 
@@ -1572,6 +1730,7 @@ function openTxModal(txId){
 function closeTxModal(){
   document.getElementById('tx-modal-overlay').classList.remove('show');
   AppState.editingTxId = null;
+  _txGenreLocked = false;
 }
 
 function submitTransaction(){
@@ -1583,8 +1742,8 @@ function submitTransaction(){
     showToast('日付と金額を正しく入力してください');
     return;
   }
-  if (!_selectedTxCategory || !_selectedTxMethod) {
-    showToast('項目と支払い方法を選択してください');
+  if (!_selectedTxGenre || !_selectedTxCategory || !_selectedTxMethod) {
+    showToast('ジャンル・項目・支払い方法を選択してください');
     return;
   }
 
@@ -1593,20 +1752,23 @@ function submitTransaction(){
     if (tx) {
       tx.date = date; tx.amount = amount; tx.category = _selectedTxCategory;
       tx.method = _selectedTxMethod; tx.memo = memo;
-      // isIncomeフラグは編集時も引き継ぐ（収入として記帳したものは収入のまま）
+      tx.genre = _selectedTxGenre;
+      tx.isIncome = _selectedTxGenre === '収入';
     }
     showToast('記録を更新しました');
   } else {
     AppState.transactions.push({
       id: nextTxId(), date, amount, category: _selectedTxCategory,
       method: _selectedTxMethod, memo,
-      isIncome: _txIsIncome || false,  // 収入記帳フラグ
+      genre: _selectedTxGenre,
+      isIncome: _selectedTxGenre === '収入',
       createdAt: Date.now()
     });
     showToast('記帳しました');
   }
 
   _txIsIncome = false;  // フラグリセット
+  _txGenreLocked = false;
   saveLocalState();
   closeTxModal();
   refreshActivePage();
@@ -1682,18 +1844,22 @@ function setupConfirmButtons(){
 /* ============================================================
    履歴ページ（3メイングループ：日付／項目／支払い、各々に絞り込みトグル）
    ============================================================ */
-let _historyMainTab = 'date'; // 'date' | 'category' | 'method'
-let _historyFilterOn = { date: false, category: false, method: false };
+let _historyMainTab = 'date'; // 'genre' | 'date' | 'category' | 'method' | 'amount'
+let _historyFilterOn = { genre: false, date: false, category: false, method: false, amount: false };
 let _historyFilterDay = null;
 let _historyFilterCategory = null;
 let _historyFilterMethod = null;
+let _historyFilterGenre = null; // ジャンル絞り込み（項目別タブの項目ドラムの候補にも影響）
+let _historyFilterAmountMin = null;
+let _historyFilterAmountMax = null;
+let _historyFilterAmountRaw = ''; // 入力欄の表示保持用
 
-const HISTORY_MAIN_LABELS = { date: '日付順', category: '項目別', method: '支払い別' };
-const HISTORY_FILTER_LABELS = { date: '日付で絞り込み', category: '項目で絞り込み', method: '支払いで絞り込み' };
+const HISTORY_MAIN_LABELS = { genre: 'ジャンル別', date: '日付順', category: '項目別', method: '支払い別', amount: '金額別' };
+const HISTORY_FILTER_LABELS = { genre: 'ジャンルで絞り込み', date: '日付で絞り込み', category: '項目で絞り込み', method: '支払いで絞り込み', amount: '金額で絞り込み' };
 
 function renderHistory(){
   const ym = AppState.currentMonth;
-  let txs = getTransactionsForMonth(ym).slice();
+  let txs = getHistoryDisplayTxs(ym).slice();
 
   const filterIsOn = _historyFilterOn[_historyMainTab];
 
@@ -1707,6 +1873,15 @@ function renderHistory(){
     if (_historyMainTab === 'method' && _historyFilterMethod) {
       txs = txs.filter(t => t.method === _historyFilterMethod);
     }
+    if (_historyMainTab === 'genre' && _historyFilterGenre) {
+      txs = txs.filter(t => txGenre(t) === _historyFilterGenre);
+    }
+    if (_historyMainTab === 'amount' && (_historyFilterAmountMin !== null || _historyFilterAmountMax !== null)) {
+      txs = txs.filter(t =>
+        (_historyFilterAmountMin === null || t.amount >= _historyFilterAmountMin) &&
+        (_historyFilterAmountMax === null || t.amount <= _historyFilterAmountMax)
+      );
+    }
   }
 
   let sorted;
@@ -1714,6 +1889,10 @@ function renderHistory(){
     sorted = txs.sort((a,b) => a.category.localeCompare(b.category,'ja') || b.date.localeCompare(a.date));
   } else if (_historyMainTab === 'method') {
     sorted = txs.sort((a,b) => a.method.localeCompare(b.method,'ja') || b.date.localeCompare(a.date));
+  } else if (_historyMainTab === 'genre') {
+    sorted = txs.sort((a,b) => GENRES.indexOf(txGenre(a)) - GENRES.indexOf(txGenre(b)) || b.date.localeCompare(a.date));
+  } else if (_historyMainTab === 'amount') {
+    sorted = txs.sort((a,b) => b.amount - a.amount || b.date.localeCompare(a.date));
   } else {
     sorted = txs.sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   }
@@ -1738,6 +1917,21 @@ function renderHistory(){
             <span class="ft-arrow">▾</span>
           </button>
         </div>`;
+    } else if (_historyMainTab === 'genre') {
+      filterTriggerHtml = `
+        <div class="filter-trigger-row">
+          <button class="filter-trigger-btn ${_historyFilterGenre?'set':''}" onclick="openHistoryFilterDrum('genre')">
+            <span>${_historyFilterGenre ? genreLabel(_historyFilterGenre) : 'ジャンルを選択'}</span>
+            <span class="ft-arrow">▾</span>
+          </button>
+        </div>`;
+    } else if (_historyMainTab === 'amount') {
+      filterTriggerHtml = `
+        <div class="amount-filter-row">
+          <input type="text" id="amount-filter-input" inputmode="numeric" placeholder="例：5000　／　1000-3000" value="${escapeHtml(_historyFilterAmountRaw)}">
+          <button type="button" class="amount-filter-btn" onclick="applyAmountFilter()">検索</button>
+        </div>
+        <div style="font-size:11px;color:var(--gray-muted);padding:0 2px 8px">数字のみで完全一致、「1000-3000」のように入力すると範囲検索になります</div>`;
     } else {
       filterTriggerHtml = `
         <div class="filter-trigger-row">
@@ -1748,6 +1942,11 @@ function renderHistory(){
         </div>`;
     }
   }
+
+  // 項目別タブの案内文（ジャンル絞り込み中は候補がそのジャンルの項目に限定される）
+  const categoryHint = (_historyMainTab === 'category' && _historyFilterGenre)
+    ? `<div style="font-size:11px;color:var(--gray-muted);padding:0 2px 8px">「${genreLabel(_historyFilterGenre)}」の項目候補で絞り込み中（ジャンル別タブで変更できます）</div>`
+    : '';
 
   let html = `
     <div class="history-summary-bar">
@@ -1768,35 +1967,44 @@ function renderHistory(){
     </div>
 
     ${filterTriggerHtml}
+    ${categoryHint}
   `;
 
   const needsSelection = filterIsOn && (
     (_historyMainTab === 'date' && !_historyFilterDay) ||
     (_historyMainTab === 'category' && !_historyFilterCategory) ||
-    (_historyMainTab === 'method' && !_historyFilterMethod)
+    (_historyMainTab === 'method' && !_historyFilterMethod) ||
+    (_historyMainTab === 'genre' && !_historyFilterGenre) ||
+    (_historyMainTab === 'amount' && _historyFilterAmountMin === null && _historyFilterAmountMax === null)
   );
 
   if (needsSelection) {
-    html += '<div class="card category-list"><div class="empty-hint">上のボタンから選択してください</div></div>';
+    html += `<div class="card category-list"><div class="empty-hint">${_historyMainTab === 'amount' ? '上の欄に金額を入力して検索してください' : '上のボタンから選択してください'}</div></div>`;
   } else if (sorted.length === 0) {
     html += '<div class="card category-list"><div class="empty-hint">該当する記帳がありません</div></div>';
-  } else if (_historyMainTab === 'date' || filterIsOn) {
+  } else if (_historyMainTab === 'date' || _historyMainTab === 'amount' || filterIsOn) {
     html += '<div class="card category-list">' + sorted.map(t => historyRowHtml(t)).join('') + '</div>';
   } else {
-    const groupKey = _historyMainTab === 'category' ? 'category' : 'method';
+    const groupKeyFn =
+      _historyMainTab === 'category' ? (t => t.category) :
+      _historyMainTab === 'method'   ? (t => t.method) :
+      _historyMainTab === 'genre'    ? (t => genreLabel(txGenre(t))) :
+      (t => t.category);
     const groups = [];
     let lastKey = null;
     sorted.forEach(t => {
-      if (t[groupKey] !== lastKey) {
-        groups.push({key: t[groupKey], items: []});
-        lastKey = t[groupKey];
+      const key = groupKeyFn(t);
+      if (key !== lastKey) {
+        groups.push({key, rawGenre: _historyMainTab === 'genre' ? txGenre(t) : null, items: []});
+        lastKey = key;
       }
       groups[groups.length-1].items.push(t);
     });
     html += groups.map(g => {
       const subtotal = g.items.reduce((a,t)=>a+t.amount,0);
+      const labelColor = g.rawGenre ? GENRE_CARD_META[g.rawGenre].color : 'var(--terracotta)';
       return `
-        <div class="history-group-label">
+        <div class="history-group-label" style="color:${labelColor}">
           <span>${escapeHtml(g.key)}</span>
           <span style="color:var(--gray-muted);font-weight:400">${fmtYen(subtotal)} ・ ${g.items.length}件</span>
         </div>
@@ -1807,17 +2015,61 @@ function renderHistory(){
 
   document.getElementById('history-content').innerHTML = html;
   injectHistoryStyles();
+
+  if (_historyMainTab === 'amount' && filterIsOn) {
+    const input = document.getElementById('amount-filter-input');
+    if (input) {
+      input.onkeydown = (e) => { if (e.key === 'Enter') applyAmountFilter(); };
+    }
+  }
+}
+
+function applyAmountFilter(){
+  const input = document.getElementById('amount-filter-input');
+  const raw = input ? input.value.trim() : '';
+  _historyFilterAmountRaw = raw;
+  if (!raw) {
+    _historyFilterAmountMin = null;
+    _historyFilterAmountMax = null;
+    renderHistory();
+    return;
+  }
+  const parts = raw.split(/[-~〜]/).map(s => s.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = parseFloat(parts[0].replace(/[^\d.]/g,''));
+    const b = parseFloat(parts[1].replace(/[^\d.]/g,''));
+    if (isNaN(a) || isNaN(b)) { showToast('金額の形式が正しくありません（例：1000-3000）'); return; }
+    _historyFilterAmountMin = Math.min(a,b);
+    _historyFilterAmountMax = Math.max(a,b);
+  } else {
+    const v = parseFloat(parts[0].replace(/[^\d.]/g,''));
+    if (isNaN(v)) { showToast('金額の形式が正しくありません（例：5000）'); return; }
+    _historyFilterAmountMin = v;
+    _historyFilterAmountMax = v;
+  }
+  renderHistory();
 }
 
 function historyRowHtml(t){
+  const isIncomeHistoryEntry = typeof t.id === 'string' && t.id.startsWith('inc_');
+  const tapAction = isIncomeHistoryEntry
+    ? `showToast('収入は設定 › 収入から編集できます'); goToIncomeSettings();`
+    : `openTxModal('${t.id}')`;
+  const genre = txGenre(t);
+  const meta = GENRE_CARD_META[genre];
+  const genreTag = `<span class="hist-genre-tag" style="color:${meta.color};background:${meta.accent}">${escapeHtml(genreLabel(genre))}</span>`;
+  const genreDot = `<span class="hist-genre-dot" style="background:${meta.color}"></span>`;
   return `
-    <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+    <div class="cat-item" style="cursor:pointer" onclick="${tapAction}">
       <div class="cat-item-top">
-        <span class="cat-name">${catNameHtml(t.category)}</span>
+        <span class="cat-name">${genreDot}${catNameHtml(t.category)}</span>
         <span class="cat-amount">${fmtYen(t.amount)}</span>
       </div>
       ${catDetailHtml(t.category)}
-      <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
+      <div style="font-size:16px;color:var(--gray-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span>${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</span>
+        ${_historyMainTab === 'genre' ? '' : genreTag}
+      </div>
     </div>`;
 }
 
@@ -1829,6 +2081,11 @@ function setHistoryMainTab(tab){
 
 function toggleHistoryFilter(checked){
   _historyFilterOn[_historyMainTab] = checked;
+  if (_historyMainTab === 'amount' && !checked) {
+    _historyFilterAmountMin = null;
+    _historyFilterAmountMax = null;
+    _historyFilterAmountRaw = '';
+  }
   renderHistory();
 }
 
@@ -1838,13 +2095,25 @@ function injectHistoryStyles(){
   style.id = 'history-extra-style';
   style.textContent = `
     .history-summary-bar { background: var(--white); border-radius: 16px; padding: 16px 18px; box-shadow: 0 2px 0 var(--line); margin-bottom: 14px; }
-    .sort-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
-    .sort-tab { flex: 1; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--white); color: var(--ink-soft); font-size: 12.5px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer; white-space: nowrap; }
+    .sort-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+    .sort-tab { flex: 1; padding: 9px 1px; border-radius: 10px; border: 1px solid var(--line); background: var(--white); color: var(--ink-soft); font-size: 10.8px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer; white-space: nowrap; }
     .sort-tab.active { background: var(--terracotta); border-color: var(--terracotta); color: white; }
     .sub-toggle-row { margin-bottom: 12px; }
     .sub-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); font-weight: 700; cursor: pointer; padding: 2px 2px; }
     .sub-toggle input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--terracotta); cursor: pointer; }
     .history-group-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--terracotta); padding: 4px 4px 8px; }
+    .hist-genre-tag { font-size: 10.5px; font-weight: 700; color: var(--terracotta); background: var(--terracotta-soft); padding: 2px 8px; border-radius: 100px; }
+    .hist-genre-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: middle; flex-shrink: 0; }
+    .amount-filter-row { display: flex; gap: 8px; margin-bottom: 6px; }
+    .amount-filter-row input {
+      flex: 1; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--white); font-family: 'Zen Maru Gothic', sans-serif; font-size: 14px; color: var(--ink);
+    }
+    .amount-filter-row input:focus { outline: 2px solid var(--terracotta-soft); border-color: var(--terracotta); }
+    .amount-filter-btn {
+      padding: 0 18px; border-radius: 12px; border: none; background: var(--terracotta); color: #fff;
+      font-family: 'Zen Maru Gothic', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -1859,22 +2128,31 @@ let _drumTargetField = null; // 'category' | 'method'
 function openHistoryFilterDrum(field){
   _drumTargetField = field;
   const ym = AppState.currentMonth;
-  const txsInMonth = getTransactionsForMonth(ym);
+  const txsInMonth = getHistoryDisplayTxs(ym);
 
-  let values, title, currentVal;
+  let values, title, currentVal, formatter = null;
   if (field === 'day') {
     const usedDays = [...new Set(txsInMonth.map(t => parseInt(t.date.split('-')[2],10)))].sort((a,b)=>a-b);
     values = usedDays.map(d => String(d));
     title = '日付で絞り込み';
     currentVal = _historyFilterDay ? String(_historyFilterDay) : (values[0]||null);
+    formatter = v => v + '日';
+  } else if (field === 'genre') {
+    values = GENRES; // 収入・支出・先取り貯金・返済・投資保険、全ジャンルを常に表示
+    title = 'ジャンルで絞り込み';
+    currentVal = _historyFilterGenre || (values[0]||null);
+    formatter = genreLabel;
   } else if (field === 'category') {
     const usedCats = [...new Set(txsInMonth.map(t => t.category))];
-    values = AppState.categories.map(c=>c.name).filter(n => usedCats.includes(n));
-    title = '項目で絞り込み';
+    const candidateNames = _historyFilterGenre
+      ? categoryOptionsForGenre(_historyFilterGenre)
+      : AppState.categories.map(c=>c.name).concat(AppState.incomeSources.map(s=>s.name));
+    values = candidateNames.filter(n => usedCats.includes(n));
+    title = _historyFilterGenre ? `${genreLabel(_historyFilterGenre)}の項目で絞り込み` : '項目で絞り込み';
     currentVal = _historyFilterCategory || (values[0]||null);
   } else {
     const usedMethods = [...new Set(txsInMonth.map(t => t.method))];
-    values = AppState.paymentMethods.map(m=>m.name).filter(n => usedMethods.includes(n));
+    values = AppState.paymentMethods.map(m=>m.name).concat(['収入']).filter((n,i,arr) => usedMethods.includes(n) && arr.indexOf(n)===i);
     title = '支払い方法で絞り込み';
     currentVal = _historyFilterMethod || (values[0]||null);
   }
@@ -1884,7 +2162,7 @@ function openHistoryFilterDrum(field){
     return;
   }
 
-  buildDrumDOM(title, values, currentVal, field === 'day' ? v => v + '日' : null);
+  buildDrumDOM(title, values, currentVal, formatter);
 }
 
 function buildDrumDOM(title, values, currentVal, formatter){
@@ -1983,6 +2261,15 @@ function closeDrum(apply){
     if (_drumTargetField === 'category') _historyFilterCategory = val;
     if (_drumTargetField === 'method') _historyFilterMethod = val;
     if (_drumTargetField === 'day') _historyFilterDay = val;
+    if (_drumTargetField === 'genre') _historyFilterGenre = val;
+    if (_drumTargetField === 'tx-genre') {
+      _selectedTxGenre = val;
+      _txIsIncome = val === '収入';
+      // ジャンルが変わったら項目をそのジャンルの先頭候補にリセット
+      const opts = categoryOptionsForGenre(_selectedTxGenre);
+      _selectedTxCategory = opts[0] || null;
+      updateTxFieldTriggerLabels();
+    }
     if (_drumTargetField === 'tx-category') { _selectedTxCategory = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'tx-method') { _selectedTxMethod = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'analysis-category') { _analysisSelectedCategory = val; renderAnalysis(); }
@@ -2013,7 +2300,7 @@ function closeDrum(apply){
       if (currentUser) saveToFirestore();
       renderSettingsTabContent();
     }
-    if (_drumTargetField === 'category' || _drumTargetField === 'method' || _drumTargetField === 'day') renderHistory();
+    if (_drumTargetField === 'category' || _drumTargetField === 'method' || _drumTargetField === 'day' || _drumTargetField === 'genre') renderHistory();
   }
   const overlay = document.getElementById('drum-overlay');
   if (overlay) overlay.remove();
@@ -2167,24 +2454,8 @@ function renderAnalysis(){
   const repaymentTotal = summary.repayment || 0;
 
   let html = `
-    <div class="kpi-grid" style="margin-top:0">
-      <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('income')">
-        <div class="kpi-label">収入 <span style="font-size:11px;color:var(--gray-muted)">› 履歴</span></div>
-        <div class="kpi-value" style="font-size:22px">${fmtYen(summary.income)}</div>
-        ${balanceDelta !== null ? `<span class="kpi-delta ${balanceDelta>=0?'up':'down'}">先月比 ${fmtYenSigned(balanceDelta)}</span>` : ''}
-      </div>
-      <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('expense')">
-        <div class="kpi-label">支出 <span style="font-size:11px;color:var(--gray-muted)">› 履歴</span></div>
-        <div class="kpi-value" style="font-size:22px">${fmtYen(summary.expense)}</div>
-      </div>
-      <div class="kpi-card" style="cursor:pointer" onclick="openGroupDetailModal('貯蓄')">
-        <div class="kpi-label">貯蓄 <span style="font-size:11px;color:var(--gray-muted)">› 一覧・編集</span></div>
-        <div class="kpi-value" style="font-size:22px;color:var(--sage-deep)">${fmtYen(savingsTotal)}</div>
-      </div>
-      <div class="kpi-card" style="cursor:pointer" onclick="openGroupDetailModal('返済')">
-        <div class="kpi-label">返済 <span style="font-size:11px;color:var(--gray-muted)">› 一覧・編集</span></div>
-        <div class="kpi-value" style="font-size:22px;color:var(--red-deficit)">${fmtYen(repaymentTotal)}</div>
-      </div>
+    <div class="home-genre-grid" style="margin-top:0">
+      ${genreCardsGridHtml(ym, { showDelta: true })}
     </div>
 
     <div class="section-title mt"><span class="label">収支の推移</span></div>
@@ -2230,7 +2501,7 @@ function renderAnalysis(){
       <div class="card-table-head"><span>カード</span><span>利用累計</span><span>請求額</span><span>差分</span></div>
       ${cardRows.length ? cardRows.map((c,i) => {
         const diff = c.billed !== null ? c.billed - c.usage : null;
-        const ok = diff !== null && Math.abs(diff) < 1;
+        const ok = diff !== null && Math.abs(diff) <= 100;
         return `
         <div class="card-table-row">
           <span class="card-id" style="flex-direction:column;align-items:flex-start;gap:2px">
@@ -2239,7 +2510,7 @@ function renderAnalysis(){
           </span>
           <span>${fmtYen(c.usage)}</span>
           <span>${c.billed!==null ? fmtYen(c.billed) : '—'}</span>
-          ${diff!==null ? `<span class="diff-tag ${ok?'ok':'warn'}">${ok?'±0':fmtYenSigned(diff)}</span>` : '<span class="diff-tag warn">未確定</span>'}
+          ${diff!==null ? `<span class="diff-tag ${ok?'ok':'warn'}">${ok?'一致':fmtYenSigned(diff)}</span>` : '<span class="diff-tag warn">未確定</span>'}
         </div>`;
       }).join('') : '<div style="padding:16px" class="empty-hint">データがありません</div>'}
     </div>
@@ -2561,10 +2832,11 @@ function openGroupDetailModal(group){
 }
 
 function openTxModalForCategory(catName){
-  _txCategoryMode = 'all'; // 全カテゴリから選べる
+  _txGenreLocked = false;
+  _selectedTxGenre = categoryGenre(catName);
   _selectedTxCategory = catName;
   _selectedTxMethod = AppState.paymentMethods[0]?.name || null;
-  _txIsIncome = false;
+  _txIsIncome = _selectedTxGenre === '収入';
   AppState.editingTxId = null;
   document.getElementById('tx-modal-title').textContent = `${catName}を記帳`;
   document.getElementById('tx-date').value = todayYMD();
@@ -2838,7 +3110,7 @@ function renderCardsBillingTab(){
     const usage = getCardUsageForMonth(billingTargetYm, card.name);
     const billed = getCardBillingForMonth(billingTargetYm, card.name);
     const diff = billed !== null ? billed - usage : null;
-    const ok = diff !== null && Math.abs(diff) < 1;
+    const ok = diff !== null && Math.abs(diff) <= 100;
     const txCount = getTransactionsForMonth(billingTargetYm).filter(t => t.method === card.name).length;
 
     html += `
@@ -2992,35 +3264,37 @@ function addCategory(group){
 
 function renderIncomeSettings(){
   const ym = AppState.currentMonth;
-  const actual = getIncomeActualForMonth(ym);
+  const actual = getIncomeActualForMonth(ym); // 日付ドラムの選択値のみ保持（金額はもう使わない）
 
-  // ① 実際収入（保存ボタン付き）
-  let html = `<div class="settings-group-label">${monthLabel(ym)}の実際収入</div>`;
+  // ① 収入を記帳（入力ボタン→記帳データへ直接反映）
+  let html = `<div class="settings-group-label">${monthLabel(ym)}の収入を記帳</div>`;
   AppState.incomeSources.forEach((s, idx) => {
     const entry = actual[s.name] || {};
-    const amount = typeof entry === 'object' ? (entry.amount || 0) : entry;
     const day = typeof entry === 'object' ? (entry.day || null) : null;
-    const history = getIncomeHistoryForMonth(ym, s.name);
+    const txs = getTransactionsForMonth(ym)
+      .filter(t => t.category === s.name && txGenre(t) === '収入')
+      .sort((a,b) => b.createdAt - a.createdAt); // 新しい記帳が上
+    const subtotal = txs.reduce((a,t)=>a+t.amount, 0);
     html += `
       <div class="card" style="padding:16px;margin-bottom:10px">
-        <div style="font-size:15.5px;font-weight:700;margin-bottom:12px">${escapeHtml(s.name)}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${history.length?'12px':'0'}">
-          <button type="button" class="drum-select-btn small" style="flex:none;width:auto;min-width:60px" onclick="openIncomeDayDrum('${escapeJs(ym)}','${escapeJs(s.name)}')">${day ? day+'日' : '日付'}</button>
-          <input type="number" class="settings-input-amt" id="income-amt-${idx}" value="${amount||''}" placeholder="金額" style="flex:1;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:15px">
-          <button class="savings-first-btn" style="flex:none;padding:10px 16px;border-radius:10px;border:none;background:var(--terracotta);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer" onclick="saveIncomeEntry('${escapeJs(ym)}','${escapeJs(s.name)}',${idx})">保存</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:15.5px;font-weight:700">${escapeHtml(s.name)}</div>
+          ${txs.length ? `<div style="font-size:13px;color:var(--gray-muted)">今月合計 <strong style="color:var(--terracotta)">${fmtYen(subtotal)}</strong></div>` : ''}
         </div>
-        ${history.length ? `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${txs.length?'12px':'0'}">
+          <button type="button" class="drum-select-btn small" style="flex:none;width:auto;min-width:60px" onclick="openIncomeDayDrum('${escapeJs(ym)}','${escapeJs(s.name)}')">${day ? day+'日' : '日付'}</button>
+          <input type="number" class="settings-input-amt" id="income-amt-${idx}" value="" placeholder="金額" style="flex:1;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:15px">
+          <button class="savings-first-btn" style="flex:none;padding:10px 16px;border-radius:10px;border:none;background:var(--terracotta);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer" onclick="addIncomeTransactionFromSettings('${escapeJs(ym)}','${escapeJs(s.name)}',${idx})">入力</button>
+        </div>
+        ${txs.length ? `
           <div style="border-top:1px dashed var(--line);padding-top:10px">
-            <div style="font-size:13px;color:var(--gray-muted);margin-bottom:6px">保存履歴</div>
-            ${history.slice().reverse().map((h, ri) => {
-              const d = new Date(h.savedAt);
-              const originalIdx = history.length - 1 - ri;
-              return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
-                <span style="color:var(--gray-muted)">${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}</span>
-                <span style="font-weight:700">${fmtYen(h.amount)}</span>
-                <button onclick="deleteIncomeEntry('${escapeJs(ym)}','${escapeJs(s.name)}',${originalIdx})" style="width:24px;height:24px;border-radius:50%;border:none;background:var(--cream-deep);color:var(--red-deficit);font-size:14px;cursor:pointer;flex-shrink:0">×</button>
-              </div>`;
-            }).join('')}
+            <div style="font-size:13px;color:var(--gray-muted);margin-bottom:6px">今月の記帳履歴（新しい順）</div>
+            ${txs.map(t => `
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
+                <span style="color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')}${t.memo?' ・ '+escapeHtml(t.memo):''}</span>
+                <span style="font-weight:700">${fmtYen(t.amount)}</span>
+                <button onclick="deleteIncomeTransaction('${t.id}')" style="width:24px;height:24px;border-radius:50%;border:none;background:var(--cream-deep);color:var(--red-deficit);font-size:14px;cursor:pointer;flex-shrink:0">×</button>
+              </div>`).join('')}
           </div>` : ''}
       </div>`;
   });
@@ -3045,70 +3319,46 @@ function renderIncomeSettings(){
   return html;
 }
 
+// 互換用（過去データのマイグレーションでのみ参照）
 function getIncomeHistoryForMonth(ym, name){
   const stored = stor('kk_income_history') || {};
   return (stored[ym] && stored[ym][name]) ? stored[ym][name] : [];
 }
 
-function deleteIncomeEntry(ym, name, entryIdx){
-  const hist = stor('kk_income_history') || {};
-  const entries = (hist[ym] && hist[ym][name]) ? hist[ym][name] : [];
-  if (!entries[entryIdx]) return;
-
-  const h = entries[entryIdx];
-  const d = new Date(h.savedAt);
-  const label = `${name} ${fmtYen(h.amount)}（${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}）`;
-
-  showConfirm(`「${label}」を削除しますか？`, () => {
-    entries.splice(entryIdx, 1);
-    if (!hist[ym]) hist[ym] = {};
-    hist[ym][name] = entries;
-    stor('kk_income_history', hist);
-
-    // kk_income_actualも更新（最新値に同期）
-    const storedActual = stor('kk_income_actual') || {};
-    if (!storedActual[ym]) storedActual[ym] = {};
-    if (entries.length > 0) {
-      const latest = entries[entries.length - 1];
-      storedActual[ym][name] = { amount: latest.amount, day: latest.day };
-    } else {
-      delete storedActual[ym][name];
-    }
-    stor('kk_income_actual', storedActual);
-
-    if (currentUser) saveToFirestore();
-    showToast('収入履歴を削除しました');
-    renderSettingsTabContent();
-  }, '削除する');
-}
-
-function saveIncomeEntry(ym, name, inputIdx){
+// 設定›収入の「入力」ボタン：記帳データ（収入ジャンル）へ直接追加する
+function addIncomeTransactionFromSettings(ym, name, inputIdx){
   const input = document.getElementById(`income-amt-${inputIdx}`);
-  const amount = parseFloat(input ? input.value : 0);
+  const amount = parseFloat(input ? input.value : NaN);
   if (isNaN(amount) || amount <= 0) { showToast('正しい金額を入力してください'); return; }
 
-  // 日付（ドラムで選択済みのday）を取得
   const actual = getIncomeActualForMonth(ym);
   const entry = actual[name] || {};
-  const day = typeof entry === 'object' ? (entry.day || null) : null;
+  const day = (typeof entry === 'object' && entry.day) ? entry.day : new Date().getDate();
+  const [y, m] = ym.split('-');
+  const daysInMonth = new Date(parseInt(y,10), parseInt(m,10), 0).getDate();
+  const safeDay = Math.min(Math.max(1, day), daysInMonth);
 
-  // kk_income_actualを更新（既存の互換性維持）
-  const storedActual = stor('kk_income_actual') || {};
-  if (!storedActual[ym]) storedActual[ym] = {};
-  const prev = typeof (storedActual[ym][name]||{}) === 'object' ? (storedActual[ym][name]||{}) : {};
-  storedActual[ym][name] = {...prev, amount, day};
-  stor('kk_income_actual', storedActual);
-
-  // kk_income_historyに履歴として追記
-  const hist = stor('kk_income_history') || {};
-  if (!hist[ym]) hist[ym] = {};
-  if (!hist[ym][name]) hist[ym][name] = [];
-  hist[ym][name].push({ amount, day, savedAt: Date.now() });
-  stor('kk_income_history', hist);
-
-  if (currentUser) saveToFirestore();
-  showToast(`${name} ${fmtYen(amount)} を保存しました`);
+  AppState.transactions.push({
+    id: nextTxId(),
+    date: `${y}-${pad2(parseInt(m,10))}-${pad2(safeDay)}`,
+    amount, category: name, method: '収入', memo: '',
+    genre: '収入', isIncome: true,
+    createdAt: Date.now(),
+  });
+  saveLocalState();
+  showToast(`${name} ${fmtYen(amount)} を記帳しました`);
   renderSettingsTabContent();
+}
+
+function deleteIncomeTransaction(txId){
+  const tx = AppState.transactions.find(t => t.id === txId);
+  if (!tx) return;
+  showConfirm(`「${tx.category} ${fmtYen(tx.amount)}」を削除しますか？`, () => {
+    AppState.transactions = AppState.transactions.filter(t => t.id !== txId);
+    saveLocalState();
+    showToast('削除しました');
+    renderSettingsTabContent();
+  }, '削除する');
 }
 
 function openIncomeDayDrum(ym, name){
@@ -3117,10 +3367,11 @@ function openIncomeDayDrum(ym, name){
   const values = Array.from({length: daysInMonth}, (_, i) => String(i+1));
   const actual = getIncomeActualForMonth(ym);
   const entry = actual[name] || {};
-  const currentDay = typeof entry === 'object' ? (entry.day ? String(entry.day) : '1') : '1';
+  const currentDay = typeof entry === 'object' ? (entry.day ? String(entry.day) : String(new Date().getDate())) : String(new Date().getDate());
   _drumTargetField = `income-day|${ym}|${name}`;
   buildDrumDOM('入金日を選択', values, currentDay, v => v + '日');
 }
+
 
 function updateIncomeActualAmount(ym, name, value){
   const stored = stor('kk_income_actual') || {};
@@ -3755,6 +4006,9 @@ async function loadFromFirestore(){
       if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
       if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
       if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
+
+      // クラウドの収入履歴（旧方式）が未統合なら、ここでも記帳データへ取り込む
+      migrateIncomeHistoryToTransactions();
 
       stor('kk_categories', AppState.categories);
       stor('kk_income_sources', AppState.incomeSources);
