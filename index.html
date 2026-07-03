@@ -2118,6 +2118,12 @@ function renderAnalysis(){
   });
   const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
 
+  // 貯蓄・返済グループの合計
+  const savingsCats = AppState.categories.filter(c => c.group === '貯蓄');
+  const repaymentCats = AppState.categories.filter(c => c.group === '返済');
+  const savingsTotal = savingsCats.reduce((a,c) => a + (summary.byCategory[c.name]||0), 0);
+  const repaymentTotal = repaymentCats.reduce((a,c) => a + (summary.byCategory[c.name]||0), 0);
+
   let html = `
     <div class="kpi-grid" style="margin-top:0">
       <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('income')">
@@ -2128,6 +2134,14 @@ function renderAnalysis(){
       <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('expense')">
         <div class="kpi-label">支出 <span style="font-size:11px;color:var(--gray-muted)">› 履歴</span></div>
         <div class="kpi-value" style="font-size:22px">${fmtYen(summary.expense)}</div>
+      </div>
+      <div class="kpi-card" style="cursor:pointer" onclick="openGroupDetailModal('貯蓄')">
+        <div class="kpi-label">貯蓄 <span style="font-size:11px;color:var(--gray-muted)">› 一覧・編集</span></div>
+        <div class="kpi-value" style="font-size:22px;color:var(--sage-deep)">${fmtYen(savingsTotal)}</div>
+      </div>
+      <div class="kpi-card" style="cursor:pointer" onclick="openGroupDetailModal('返済')">
+        <div class="kpi-label">返済 <span style="font-size:11px;color:var(--gray-muted)">› 一覧・編集</span></div>
+        <div class="kpi-value" style="font-size:22px;color:var(--red-deficit)">${fmtYen(repaymentTotal)}</div>
       </div>
     </div>
 
@@ -2438,6 +2452,65 @@ function fmtYenShort(n){
   const abs = Math.abs(r);
   if (abs >= 10000) return sign + (abs/10000).toFixed(abs%10000===0?0:1) + '万';
   return sign + abs.toLocaleString();
+}
+
+function openGroupDetailModal(group){
+  const ym = AppState.currentMonth;
+  const summary = getMonthSummary(ym);
+  const cats = AppState.categories.filter(c => c.group === group);
+  const total = cats.reduce((a,c) => a + (summary.byCategory[c.name]||0), 0);
+  const isRepayment = group === '返済';
+  const accentColor = isRepayment ? 'var(--red-deficit)' : 'var(--sage-deep)';
+
+  const bodyContent = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px">
+      <div style="font-size:13px;color:var(--gray-muted)">${monthLabel(ym)}の${group}合計</div>
+      <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700;color:${accentColor}">${fmtYen(total)}</div>
+    </div>
+    ${cats.length === 0 ? `<div class="empty-hint">「${group}」グループの項目がありません。設定から追加してください。</div>` :
+      cats.map(c => {
+        const actual = summary.byCategory[c.name] || 0;
+        const txs = getTransactionsForMonth(ym).filter(t => t.category === c.name);
+        return `
+          <div style="border-bottom:1px solid var(--cream-deep);padding:12px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:15px;font-weight:700">${catNameHtml(c.name)}</span>
+              <span style="font-size:16px;font-weight:700;color:${accentColor}">${fmtYen(actual)}</span>
+            </div>
+            ${c.budget > 0 ? `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:8px">予算 ${fmtYen(c.budget)}</div>` : ''}
+            ${txs.length > 0 ? `
+              <div style="background:var(--cream);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+                ${txs.map(t => `
+                  <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;cursor:pointer" onclick="closeHistoryModal();openTxModal('${t.id}')">
+                    <span style="color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ${t.memo?'・'+escapeHtml(t.memo):''}</span>
+                    <span style="font-weight:700">${fmtYen(t.amount)}</span>
+                  </div>`).join('')}
+              </div>` : `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:8px">この月の記帳なし</div>`}
+            <button onclick="closeHistoryModal();openTxModalForCategory('${escapeJs(c.name)}')" style="width:100%;padding:8px;border-radius:8px;border:1px dashed var(--line);background:var(--white);font-family:inherit;font-size:13px;font-weight:700;color:var(--terracotta);cursor:pointer">＋ ${escapeHtml(c.name)}を記帳する</button>
+          </div>`;
+      }).join('')}
+  `;
+
+  document.getElementById('history-modal-title').textContent = `${group}の内訳（${monthLabel(ym)}）`;
+  document.getElementById('history-modal-body').innerHTML = bodyContent;
+  document.getElementById('history-modal-overlay').classList.add('show');
+}
+
+function openTxModalForCategory(catName){
+  _selectedTxCategory = catName;
+  _selectedTxMethod = AppState.paymentMethods[0]?.name || null;
+  _txIsIncome = false;
+  AppState.editingTxId = null;
+  document.getElementById('tx-modal-title').textContent = `${catName}を記帳`;
+  document.getElementById('tx-date').value = todayYMD();
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-memo').value = '';
+  document.getElementById('tx-delete-btn').style.display = 'none';
+  document.getElementById('tx-submit-btn').textContent = '記帳する';
+  updateTxFieldTriggerLabels();
+  const catBtn = document.getElementById('tx-category-trigger');
+  if (catBtn) { catBtn.textContent = catName; catBtn.classList.remove('empty'); catBtn.onclick = () => openTxFieldDrum('category'); }
+  document.getElementById('tx-modal-overlay').classList.add('show');
 }
 
 function openIncomeExpenseHistoryModal(type){
