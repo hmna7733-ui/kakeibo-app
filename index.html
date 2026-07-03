@@ -1079,32 +1079,43 @@ function isIncomeCategory(catName){
 
 function getMonthSummary(ym){
   const txs = getTransactionsForMonth(ym);
-  let expense = 0;
+
+  // カテゴリのグループを素早く引けるようにMap化
+  const catGroupMap = {};
+  AppState.categories.forEach(c => { catGroupMap[c.name] = c.group || '変動費'; });
+
+  let expense = 0;   // 変動費・固定費・投資保険など
+  let savings = 0;   // 貯蓄グループ
+  let repayment = 0; // 返済グループ
   const byCategory = {};
+
   txs.forEach(t => {
     byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
-    if (!t.isIncome) {
+    if (t.isIncome) return; // 収入フラグはスキップ
+    const group = catGroupMap[t.category] || '変動費';
+    if (group === '貯蓄') {
+      savings += t.amount;
+    } else if (group === '返済') {
+      repayment += t.amount;
+    } else {
       expense += t.amount;
     }
   });
 
-  // 収入は kk_income_history の各項目の「最新の保存値」の合計を使う
-  // 同じ月に同じ項目を複数回保存した場合は最後の1件を使う
+  // 収入：kk_income_historyを優先、なければkk_income_actual
   const incomeFromHistory = calcIncomeFromHistory(ym);
-
-  // kk_income_actualも参照（過去データ・Excelからの引き継ぎデータとの互換性）
   const incomeActual = getIncomeActualForMonth(ym);
   const incomeFromActual = Object.values(incomeActual).reduce((a,b) => {
     const v = typeof b === 'object' ? (b.amount || 0) : (b || 0);
     return a + v;
   }, 0);
-
-  // kk_income_historyに保存がある月はその合計を優先、なければkk_income_actual
   const income = incomeFromHistory > 0 ? incomeFromHistory : incomeFromActual;
 
+  const totalSpend = expense + savings + repayment;
   const budgetTotal = AppState.categories.reduce((a,c)=>a+(c.budget||0), 0);
 
-  return { income, expense, byCategory, budgetTotal, balance: income - expense, budgetDiff: budgetTotal - expense };
+  return { income, expense, savings, repayment, totalSpend, byCategory, budgetTotal,
+    balance: income - totalSpend, budgetDiff: budgetTotal - totalSpend };
 }
 
 // 各収入項目の「最新保存値」を合算した収入合計
@@ -1219,14 +1230,14 @@ function renderHome(){
   const prevSummary = getMonthSummary(prevYm);
 
   // 収支バランス = 先月収入 - 今月支出
-  const balance = prevSummary.income - summary.expense;
+  const balance = prevSummary.income - summary.totalSpend;
 
   const balEl = document.getElementById('home-balance');
   balEl.innerHTML = `<span class="yen">¥</span>${Math.round(balance).toLocaleString()}`;
   balEl.classList.toggle('minus', balance < 0);
 
   document.getElementById('home-income').textContent = fmtYen(prevSummary.income);
-  document.getElementById('home-expense').textContent = fmtYen(summary.expense);
+  document.getElementById('home-expense').textContent = fmtYen(summary.totalSpend);
 
   // 先取り貯金・収入の表示
   renderSavingsFirst(ym);
@@ -1386,9 +1397,10 @@ function openSavingsTxModal(){
     return;
   }
   const cashMethod = AppState.paymentMethods.find(m=>m.name==='現金');
+  _txCategoryMode = 'savings'; // 貯蓄限定モード
+  _txIsIncome = false;
   _selectedTxCategory = savingsCats[0];
   _selectedTxMethod = cashMethod ? '現金' : (AppState.paymentMethods[0]?.name || null);
-  _txIsIncome = false;
 
   AppState.editingTxId = null;
   document.getElementById('tx-modal-title').textContent = '先取り貯金を記帳';
@@ -1397,26 +1409,7 @@ function openSavingsTxModal(){
   document.getElementById('tx-memo').value = '';
   document.getElementById('tx-delete-btn').style.display = 'none';
   document.getElementById('tx-submit-btn').textContent = '記帳する';
-
-  // 項目ボタン：貯蓄グループのみのドラム
-  const catBtn = document.getElementById('tx-category-trigger');
-  if (catBtn) {
-    catBtn.textContent = _selectedTxCategory;
-    catBtn.classList.remove('empty');
-    catBtn.onclick = () => {
-      _drumTargetField = 'tx-category';
-      buildDrumDOM('貯蓄項目を選択', savingsCats, _selectedTxCategory || savingsCats[0]);
-    };
-  }
-
-  // 支払い方法ボタン：通常通り
   updateTxFieldTriggerLabels();
-  const methodBtn = document.getElementById('tx-method-trigger');
-  if (methodBtn) {
-    methodBtn.textContent = _selectedTxMethod || '選択してください';
-    methodBtn.onclick = () => openTxFieldDrum('method');
-  }
-
   document.getElementById('tx-modal-overlay').classList.add('show');
 }
 
@@ -1481,22 +1474,40 @@ function escapeHtml(s){
    ============================================================ */
 let _selectedTxCategory = null;
 let _selectedTxMethod = null;
-let _txIsIncome = false;  // 収入記帳モーダルから開かれたかどうかのフラグ
+let _txIsIncome = false;
+let _txCategoryMode = 'all'; // 'all' | 'savings' | 'income' | 'specific'
+let _txCategoryFixed = null; // 特定カテゴリ固定モード用
 
 function updateTxFieldTriggerLabels(){
   const catBtn = document.getElementById('tx-category-trigger');
   const methodBtn = document.getElementById('tx-method-trigger');
-  catBtn.textContent = _selectedTxCategory || '選択してください';
-  catBtn.classList.toggle('empty', !_selectedTxCategory);
-  methodBtn.textContent = _selectedTxMethod || '選択してください';
-  methodBtn.classList.toggle('empty', !_selectedTxMethod);
+  if (catBtn) {
+    catBtn.textContent = _selectedTxCategory || '選択してください';
+    catBtn.classList.toggle('empty', !_selectedTxCategory);
+    // onclickを常にリセット（上書き対策）
+    catBtn.onclick = () => openTxFieldDrum('category');
+  }
+  if (methodBtn) {
+    methodBtn.textContent = _selectedTxMethod || '選択してください';
+    methodBtn.classList.toggle('empty', !_selectedTxMethod);
+    methodBtn.onclick = () => openTxFieldDrum('method');
+  }
 }
 
 function openTxFieldDrum(field){
   let values, title, currentVal;
   if (field === 'category') {
-    values = AppState.categories.map(c => c.name);
-    title = '項目を選択';
+    if (_txCategoryMode === 'savings') {
+      values = AppState.categories.filter(c => c.group === '貯蓄').map(c => c.name);
+      title = '貯蓄項目を選択';
+    } else if (_txCategoryMode === 'income') {
+      values = AppState.incomeSources.map(s => s.name);
+      title = '収入項目を選択';
+    } else {
+      // 通常：全カテゴリ
+      values = AppState.categories.map(c => c.name);
+      title = '項目を選択';
+    }
     currentVal = _selectedTxCategory;
   } else {
     values = AppState.paymentMethods.map(m => m.name);
@@ -1513,7 +1524,8 @@ function openTxFieldDrum(field){
 
 function openTxModal(txId){
   AppState.editingTxId = txId || null;
-  _txIsIncome = false;  // 通常記帳なのでフラグOFF（収入モーダル以外から開く場合）
+  _txIsIncome = false;
+  _txCategoryMode = 'all'; // 通常記帳：全カテゴリ
   const expenseCats = AppState.categories.map(c=>c.name);
   const methods = AppState.paymentMethods.map(m=>m.name);
 
@@ -2118,11 +2130,9 @@ function renderAnalysis(){
   });
   const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
 
-  // 貯蓄・返済グループの合計
-  const savingsCats = AppState.categories.filter(c => c.group === '貯蓄');
-  const repaymentCats = AppState.categories.filter(c => c.group === '返済');
-  const savingsTotal = savingsCats.reduce((a,c) => a + (summary.byCategory[c.name]||0), 0);
-  const repaymentTotal = repaymentCats.reduce((a,c) => a + (summary.byCategory[c.name]||0), 0);
+  // 貯蓄・返済はsummaryから直接取得
+  const savingsTotal = summary.savings || 0;
+  const repaymentTotal = summary.repayment || 0;
 
   let html = `
     <div class="kpi-grid" style="margin-top:0">
@@ -2497,6 +2507,7 @@ function openGroupDetailModal(group){
 }
 
 function openTxModalForCategory(catName){
+  _txCategoryMode = 'all'; // 全カテゴリから選べる
   _selectedTxCategory = catName;
   _selectedTxMethod = AppState.paymentMethods[0]?.name || null;
   _txIsIncome = false;
@@ -2508,8 +2519,6 @@ function openTxModalForCategory(catName){
   document.getElementById('tx-delete-btn').style.display = 'none';
   document.getElementById('tx-submit-btn').textContent = '記帳する';
   updateTxFieldTriggerLabels();
-  const catBtn = document.getElementById('tx-category-trigger');
-  if (catBtn) { catBtn.textContent = catName; catBtn.classList.remove('empty'); catBtn.onclick = () => openTxFieldDrum('category'); }
   document.getElementById('tx-modal-overlay').classList.add('show');
 }
 
@@ -2624,8 +2633,7 @@ async function runAiAnalysis(ym, summary, cardRows){
   const bodyEl = document.getElementById('ai-analysis-body');
   if (!bodyEl) return;
 
-  // データが少なすぎる場合はスキップ
-  if (summary.expense === 0) {
+  if (summary.totalSpend === 0 && summary.savings === 0) {
     bodyEl.innerHTML = '<div class="ai-point"><span class="ai-icon good">i</span><span>この月の記帳がまだありません。記帳が進むと分析が表示されます。</span></div>';
     return;
   }
@@ -2640,7 +2648,7 @@ async function runAiAnalysis(ym, summary, cardRows){
 
   const prompt = `あなたは家計簿アプリのファイナンシャルアドバイザーです。以下の${monthLabel(ym)}の家計データを分析し、良い点1つと改善点・注意点を2つ、日本語で簡潔に（各60字程度）述べてください。
 
-【収支】収入${summary.income}円 / 支出${summary.expense}円 / 予算合計${summary.budgetTotal}円
+【収支】収入${summary.income}円 / 支出${summary.expense}円 / 貯蓄${summary.savings}円 / 返済${summary.repayment}円 / 予算合計${summary.budgetTotal}円
 
 【項目別支出（上位）】
 ${catLines}
