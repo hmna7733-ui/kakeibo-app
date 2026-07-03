@@ -367,9 +367,8 @@
   .cat-item { padding: 14px 0; border-bottom: 1px solid var(--cream-deep); }
   .cat-item:last-child { border-bottom: none; }
   .cat-item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; font-size: 15.5px; gap: 8px; }
-  .cat-name { font-weight: 700; flex: 1; min-width: 0; max-width: calc(100% - 120px); display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-  .cat-name-text { font-weight: 700; }
-  .cat-detail-text { font-size: 12px; color: var(--gray-muted); font-weight: 400; white-space: normal; word-break: break-all; line-height: 1.4; }
+  .cat-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; }
+  .cat-detail-text { font-size: 12px; color: var(--gray-muted); font-weight: 400; display: block; line-height: 1.4; margin-top: 2px; word-break: break-all; }
   .cat-amount { font-variant-numeric: tabular-nums; text-align: right; flex-shrink: 0; white-space: nowrap; }
   .cat-amount .budget { color: var(--gray-muted); font-size: 15.5px; }
   .cat-bar-track { height: 7px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
@@ -1277,6 +1276,7 @@ function renderHome(){
             <span class="cat-name">${catNameHtml(c.name)}</span>
             <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
           </div>
+          ${catDetailHtml(c.name)}
           <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
         </div>`;
     }).join('');
@@ -1317,6 +1317,7 @@ function renderHome(){
           <span class="cat-name">${catNameHtml(t.category)}</span>
           <span class="cat-amount">${fmtYen(t.amount)}</span>
         </div>
+        ${catDetailHtml(t.category)}
         <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
       </div>`).join('');
   }
@@ -1361,6 +1362,7 @@ function renderSavingsFirst(ym){
             <span class="cat-name">${catNameHtml(t.category)}</span>
             <span class="cat-amount">${fmtYen(t.amount)}</span>
           </div>
+          ${catDetailHtml(t.category)}
           <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
         </div>`).join('')}`;
   }
@@ -1461,6 +1463,7 @@ function openHistoryModal(title, txs){
             <span class="cat-name">${catNameHtml(t.category)}</span>
             <span class="cat-amount">${fmtYen(t.amount)}</span>
           </div>
+          ${catDetailHtml(t.category)}
           <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
         </div>`).join('')}
     `;
@@ -1474,10 +1477,13 @@ function closeHistoryModal(){
 
 // カテゴリ名 + 詳細をセットで返すHTML（詳細があれば名前の横に小さく表示）
 function catNameHtml(catName){
+  // 名前のみ返す（詳細は catDetailHtml を使って別行に出す）
+  return escapeHtml(catName);
+}
+
+function catDetailHtml(catName){
   const cat = AppState.categories.find(c => c.name === catName);
-  const detail = cat && cat.detail ? cat.detail : '';
-  if (!detail) return `<span class="cat-name-text">${escapeHtml(catName)}</span>`;
-  return `<span class="cat-name-text">${escapeHtml(catName)}</span><span class="cat-detail-text">${escapeHtml(detail)}</span>`;
+  return (cat && cat.detail) ? `<div class="cat-detail-text">${escapeHtml(cat.detail)}</div>` : '';
 }
 
 function escapeHtml(s){
@@ -1810,6 +1816,7 @@ function historyRowHtml(t){
         <span class="cat-name">${catNameHtml(t.category)}</span>
         <span class="cat-amount">${fmtYen(t.amount)}</span>
       </div>
+      ${catDetailHtml(t.category)}
       <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
     </div>`;
 }
@@ -2290,8 +2297,9 @@ function renderEnvelopePage(){
           <div class="cat-item" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
             <div class="cat-item-top">
               <span class="cat-name">${catNameHtml(e.name)}</span>
-              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'};flex-shrink:0;white-space:nowrap">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
             </div>
+            ${catDetailHtml(e.name)}
             <div style="font-size:14px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
             <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
           </div>`;
@@ -2512,8 +2520,8 @@ function openGroupDetailModal(group){
         return `
           <div style="border-bottom:1px solid var(--cream-deep);padding:12px 0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:15px;font-weight:700">${catNameHtml(c.name)}</span>
-              <span style="font-size:16px;font-weight:700;color:${accentColor}">${fmtYen(actual)}</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span style="font-size:15px;font-weight:700">${catNameHtml(c.name)}</span>${catDetailHtml(c.name)}</div>
+              <span style="font-size:16px;font-weight:700;color:${accentColor};flex-shrink:0;white-space:nowrap">${fmtYen(actual)}</span>
             </div>
             ${c.budget > 0 ? `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:8px">予算 ${fmtYen(c.budget)}</div>` : ''}
             ${txs.length > 0 ? `
