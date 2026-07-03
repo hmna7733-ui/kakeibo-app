@@ -1380,13 +1380,16 @@ function openIncomeTxModal(){
 }
 
 function openSavingsTxModal(){
-  // 貯蓄カテゴリの先頭・現金をデフォにして通常の記帳モーダルを開く
   const savingsCats = AppState.categories.filter(c=>c.group==='貯蓄').map(c=>c.name);
+  if (savingsCats.length === 0) {
+    showToast('設定に「貯蓄」グループの項目がありません');
+    return;
+  }
   const cashMethod = AppState.paymentMethods.find(m=>m.name==='現金');
-  _selectedTxCategory = savingsCats[0] || AppState.categories[0]?.name || null;
-  _selectedTxMethod = cashMethod ? '現金' : AppState.paymentMethods[0]?.name || null;
+  _selectedTxCategory = savingsCats[0];
+  _selectedTxMethod = cashMethod ? '現金' : (AppState.paymentMethods[0]?.name || null);
+  _txIsIncome = false;
 
-  // 記帳モーダルを開く（カテゴリと支払い方法を貯蓄グループ限定でチップ表示）
   AppState.editingTxId = null;
   document.getElementById('tx-modal-title').textContent = '先取り貯金を記帳';
   document.getElementById('tx-date').value = todayYMD();
@@ -1395,36 +1398,26 @@ function openSavingsTxModal(){
   document.getElementById('tx-delete-btn').style.display = 'none';
   document.getElementById('tx-submit-btn').textContent = '記帳する';
 
-  // 項目チップは貯蓄グループのみ
-  buildTxCategoryChipsSavings(savingsCats);
-  // 支払い方法は通常通り（現金デフォ）
-  buildChipsMethodsWithDefault(_selectedTxMethod);
+  // 項目ボタン：貯蓄グループのみのドラム
+  const catBtn = document.getElementById('tx-category-trigger');
+  if (catBtn) {
+    catBtn.textContent = _selectedTxCategory;
+    catBtn.classList.remove('empty');
+    catBtn.onclick = () => {
+      _drumTargetField = 'tx-category';
+      buildDrumDOM('貯蓄項目を選択', savingsCats, _selectedTxCategory || savingsCats[0]);
+    };
+  }
+
+  // 支払い方法ボタン：通常通り
+  updateTxFieldTriggerLabels();
+  const methodBtn = document.getElementById('tx-method-trigger');
+  if (methodBtn) {
+    methodBtn.textContent = _selectedTxMethod || '選択してください';
+    methodBtn.onclick = () => openTxFieldDrum('method');
+  }
 
   document.getElementById('tx-modal-overlay').classList.add('show');
-}
-
-function buildTxCategoryChipsSavings(names){
-  const el = document.getElementById('tx-category-chips-wrap');
-  if (!el) {
-    // ドラムボタンを貯蓄限定に差し替え
-    const btn = document.getElementById('tx-category-trigger');
-    if (btn) {
-      btn.textContent = _selectedTxCategory || names[0];
-      btn.onclick = () => {
-        _drumTargetField = 'tx-category';
-        buildDrumDOM('貯蓄項目を選択', names, _selectedTxCategory || names[0]);
-      };
-    }
-  }
-}
-
-function buildChipsMethodsWithDefault(defaultMethod){
-  const methods = AppState.paymentMethods.map(m=>m.name);
-  const btn = document.getElementById('tx-method-trigger');
-  if (btn) {
-    btn.textContent = defaultMethod || methods[0];
-    btn.onclick = () => openTxFieldDrum('method');
-  }
 }
 
 function openCategoryHistoryModal(catName){
