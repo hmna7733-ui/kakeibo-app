@@ -1211,6 +1211,7 @@ function genreLabel(genre){ return GENRE_LABELS[genre] || genre; }
 function txGenre(t){
   if (t.genre && GENRES.includes(t.genre)) return t.genre;
   if (t.isIncome) return '収入';
+  if (isIncomeCategory(t.category)) return '収入'; // 項目名が収入項目と一致する場合の保険
   const cat = AppState.categories.find(c => c.name === t.category);
   const group = cat ? cat.group : null;
   if (group === '貯蓄') return '貯蓄';
@@ -1270,8 +1271,10 @@ function getMonthSummary(ym){
   const byCategory = {};
 
   txs.forEach(t => {
-    byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
     if (t.isIncome || txGenre(t) === '収入') { income += t.amount; return; }
+    // byCategoryは支出・貯蓄・返済・投資保険カテゴリの集計専用。
+    // 収入項目と同じ名前の項目があっても混ざらないよう、収入は含めない。
+    byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
     const group = catGroupMap[t.category] || '変動費';
     if (group === '貯蓄') {
       savings += t.amount;
