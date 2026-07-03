@@ -2640,7 +2640,7 @@ function renderEnvelopePage(){
           <div style="font-size:14px;color:var(--gray-muted)">${monthLabel(ym)}の封筒残高合計</div>
           <div style="font-family:'Shippori Mincho',serif;font-size:24px;font-weight:700;color:${totalEnvBalance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(totalEnvBalance).replace('+','')}</div>
         </div>
-        <button onclick="openEnvelopeResetDrum()" style="padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--white);font-size:14px;font-weight:700;color:var(--gray-muted);font-family:inherit;cursor:pointer">↺ リセット</button>
+        <button onclick="openEnvelopeResetDrum()" style="padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--white);font-size:14px;font-weight:700;color:var(--gray-muted);font-family:inherit;cursor:pointer">↺ 基準月変更</button>
       </div>
       ${resetYm ? `<div style="font-size:13px;color:var(--terracotta);background:rgba(193,104,63,0.08);padding:6px 10px;border-radius:8px">基準年月：${monthLabel(resetYm)}〜（それ以前の繰越は無視）</div>` : ''}
     </div>
@@ -3626,6 +3626,21 @@ function renderAccountsSettings(){
               </div>
             </div>
           ` : `<div style="font-size:16px;color:var(--gray-muted);padding:10px 0 4px">保存を重ねると残高推移グラフが表示されます</div>`}
+
+          ${history.length > 0 ? `
+            <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:10px">
+              <div style="font-size:13px;color:var(--gray-muted);margin-bottom:6px">保存履歴（新しい順）</div>
+              ${history.slice().reverse().map((h, ri) => {
+                const originalIdx = acc.balanceHistory.length - history.length + (history.length - 1 - ri);
+                const d = new Date(h.savedAt);
+                return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
+                  <span style="color:var(--gray-muted)">${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}</span>
+                  <span style="font-weight:700">${fmtYen(h.value)}</span>
+                  <button onclick="deleteAccountHistoryEntry(${idx},${originalIdx})" style="width:24px;height:24px;border-radius:50%;border:none;background:var(--cream-deep);color:var(--red-deficit);font-size:14px;cursor:pointer;flex-shrink:0">×</button>
+                </div>`;
+              }).join('')}
+            </div>
+          ` : ''}
         </div>
       </div>`;
   });
@@ -3658,6 +3673,26 @@ function saveAccountBalance(idx){
     return;
   }
   openDateDrum3(idx, val);
+}
+
+function deleteAccountHistoryEntry(accIdx, historyIdx){
+  const acc = AppState.accounts[accIdx];
+  if (!acc || !acc.balanceHistory || !acc.balanceHistory[historyIdx]) return;
+  const h = acc.balanceHistory[historyIdx];
+  const d = new Date(h.savedAt);
+  const label = `${acc.name} ${fmtYen(h.value)}（${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}）`;
+
+  showConfirm(`「${label}」の履歴を削除しますか？`, () => {
+    acc.balanceHistory.splice(historyIdx, 1);
+    // 削除した履歴が最新だった場合、口座残高も直前の履歴の値に合わせる
+    if (acc.balanceHistory.length > 0) {
+      const latest = acc.balanceHistory[acc.balanceHistory.length - 1];
+      acc.balance = latest.value;
+    }
+    saveLocalState();
+    showToast('履歴を削除しました');
+    renderSettingsTabContent();
+  }, '削除する');
 }
 
 /* 年月日3列ドラム（口座保存用） */
