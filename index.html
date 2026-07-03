@@ -49,7 +49,13 @@
     min-height: 100vh;
     padding-bottom: 100px;
     -webkit-font-smoothing: antialiased;
+    font-size: 15px;
   }
+
+  /* スピナー（上下矢印）非表示 */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
 
   .mincho { font-family: 'Shippori Mincho', serif; }
 
@@ -74,7 +80,7 @@
     margin-bottom: 6px;
   }
   .login-sub {
-    font-size: 12px;
+    font-size: 16px;
     color: rgba(255,255,255,0.55);
     margin-bottom: 40px;
     letter-spacing: 0.15em;
@@ -94,7 +100,7 @@
     border: none;
     border-radius: 10px;
     font-family: 'Zen Maru Gothic', sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     background: transparent;
@@ -138,19 +144,19 @@
     color: rgba(255,255,255,0.65);
     border: 1px solid rgba(255,255,255,0.18);
     font-family: 'Zen Maru Gothic', sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     cursor: pointer;
   }
   .auth-error {
     color: #FFD4CC;
-    font-size: 13px;
+    font-size: 15px;
     margin-top: 14px;
     text-align: center;
     display: none;
   }
   .auth-note {
     color: rgba(255,255,255,0.4);
-    font-size: 11px;
+    font-size: 15px;
     margin-top: 24px;
     text-align: center;
     line-height: 1.8;
@@ -196,13 +202,13 @@
     border: none;
     background: transparent;
     color: var(--terracotta);
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
   .month-selector span {
     font-family: 'Shippori Mincho', serif;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--terracotta);
     min-width: 64px;
@@ -210,7 +216,7 @@
   }
   .sync-badge {
     display: flex; align-items: center; gap: 5px;
-    font-size: 10px; font-weight: 700;
+    font-size: 16px; font-weight: 700;
     padding: 5px 10px;
     border-radius: 100px;
     border: none;
@@ -254,19 +260,56 @@
   }
   .section-title:first-child { margin-top: 0; }
   .income-input-btn {
-    width: 100%; margin: 12px 0 4px;
+    width: 100%; margin: 10px 0 4px;
     padding: 13px 16px;
     background: var(--white);
     border: 1.5px dashed var(--terracotta-soft);
     border-radius: 14px;
     display: flex; align-items: center; gap: 10px;
     font-family: 'Zen Maru Gothic', sans-serif;
-    font-size: 14px; font-weight: 700;
+    font-size: 16px; font-weight: 700;
     color: var(--terracotta);
     cursor: pointer;
     box-shadow: 0 2px 0 var(--line);
   }
-  .section-link { font-size: 11px; color: var(--terracotta); font-weight: 700; cursor: pointer; }
+  .savings-first-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin: 12px 0 0;
+    box-shadow: 0 2px 0 var(--line);
+    border-left: 4px solid var(--sage);
+  }
+  .savings-first-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 700; color: var(--sage-deep);
+    margin-bottom: 10px;
+  }
+  .savings-notice {
+    margin-left: auto;
+    font-size: 16.5px; font-weight: 700;
+    color: var(--terracotta);
+    background: var(--terracotta-soft);
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .savings-first-btn-open {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1.5px dashed var(--sage);
+    background: var(--sage-soft);
+    color: var(--sage-deep);
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .savings-first-saved {
+    font-size: 15.5px; color: var(--gray-muted);
+    margin-top: 8px;
+  }
+  .section-link { font-size: 15px; color: var(--terracotta); font-weight: 700; cursor: pointer; }
 
   /* ===== カード共通 ===== */
   .card {
@@ -294,7 +337,7 @@
     border-radius: 50%;
     opacity: 0.4;
   }
-  .summary-label { font-size: 12px; color: var(--gray-muted); margin-bottom: 6px; }
+  .summary-label { font-size: 16px; color: var(--gray-muted); margin-bottom: 6px; }
   .summary-balance {
     font-family: 'Shippori Mincho', serif;
     font-size: 34px;
@@ -311,7 +354,7 @@
     justify-content: space-between;
     padding: 9px 0;
     border-top: 1px dashed var(--line);
-    font-size: 13.5px;
+    font-size: 15.5px;
   }
   .summary-row .label { color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
   .summary-row .value { font-weight: 700; }
@@ -323,14 +366,14 @@
   .category-list { padding: 4px 18px; }
   .cat-item { padding: 14px 0; border-bottom: 1px solid var(--cream-deep); }
   .cat-item:last-child { border-bottom: none; }
-  .cat-item-top { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 13.5px; gap: 8px; }
+  .cat-item-top { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 15.5px; gap: 8px; }
   .cat-name { font-weight: 700; flex-shrink: 0; }
   .cat-amount { font-variant-numeric: tabular-nums; text-align: right; }
-  .cat-amount .budget { color: var(--gray-muted); font-size: 11.5px; }
+  .cat-amount .budget { color: var(--gray-muted); font-size: 15.5px; }
   .cat-bar-track { height: 7px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
   .cat-bar-fill { height: 100%; border-radius: 100px; background: var(--sage); transition: width 0.4s; }
   .cat-bar-fill.over { background: var(--terracotta); }
-  .empty-hint { padding: 20px; text-align: center; font-size: 12.5px; color: var(--gray-muted); }
+  .empty-hint { padding: 20px; text-align: center; font-size: 16.5px; color: var(--gray-muted); }
 
   /* ===== ドラム式ピッカー ===== */
   .drum-overlay {
@@ -352,12 +395,12 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 18px; border-bottom: 1px solid var(--line);
   }
-  .drum-title { font-family: 'Shippori Mincho', serif; font-size: 14.5px; font-weight: 700; color: var(--ink); }
-  .drum-done { font-size: 14px; font-weight: 700; color: var(--terracotta); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
-  .drum-cancel { font-size: 14px; color: var(--gray-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
+  .drum-title { font-family: 'Shippori Mincho', serif; font-size: 16.5px; font-weight: 700; color: var(--ink); }
+  .drum-done { font-size: 16px; font-weight: 700; color: var(--terracotta); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
+  .drum-cancel { font-size: 16px; color: var(--gray-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; font-family: 'Zen Maru Gothic', sans-serif; }
   .drum-body { display: flex; overflow: hidden; position: relative; }
   .drum-col { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
-  .drum-col-label { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--gray-muted); height: 26px; line-height: 26px; flex-shrink: 0; border-bottom: 1px solid var(--line); }
+  .drum-col-label { text-align: center; font-size: 16.5px; font-weight: 700; color: var(--gray-muted); height: 26px; line-height: 26px; flex-shrink: 0; border-bottom: 1px solid var(--line); }
   .drum-scroll {
     overflow-y: scroll; height: 220px;
     scroll-snap-type: y mandatory;
@@ -368,7 +411,7 @@
   .drum-scroll::-webkit-scrollbar { display: none; }
   .drum-item {
     height: 44px; display: flex; align-items: center; justify-content: center;
-    font-size: 14.5px; font-weight: 500; color: var(--gray-muted);
+    font-size: 16.5px; font-weight: 500; color: var(--gray-muted);
     scroll-snap-align: start; flex-shrink: 0;
     transition: color .1s, font-size .1s;
     user-select: none; padding: 0 8px; text-align: center;
@@ -389,15 +432,15 @@
   .filter-trigger-btn {
     flex: 1; padding: 11px 12px; border-radius: 12px;
     border: 1px solid var(--line); background: var(--white);
-    font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+    font-size: 16.5px; font-weight: 700; color: var(--ink-soft);
     font-family: 'Zen Maru Gothic', sans-serif; cursor: pointer;
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
   }
   .filter-trigger-btn.set { border-color: var(--terracotta); color: var(--terracotta); background: var(--terracotta-soft); }
-  .filter-trigger-btn .ft-arrow { font-size: 10px; opacity: 0.6; }
+  .filter-trigger-btn .ft-arrow { font-size: 16px; opacity: 0.6; }
   .filter-clear-btn {
     flex-shrink: 0; width: 38px; border-radius: 12px; border: 1px solid var(--line);
-    background: var(--white); color: var(--gray-muted); font-size: 14px; cursor: pointer;
+    background: var(--white); color: var(--gray-muted); font-size: 16px; cursor: pointer;
   }
 
   /* ===== ボトムナビ ===== */
@@ -413,16 +456,16 @@
   .nav-item {
     flex: 1;
     text-align: center;
-    font-size: 9.5px;
+    font-size: 8.5px;
     color: var(--gray-muted);
     background: none;
     border: none;
     cursor: pointer;
     font-family: 'Zen Maru Gothic', sans-serif;
-    padding: 0 2px;
+    padding: 0 1px;
   }
   .nav-item.active { color: var(--terracotta); font-weight: 700; }
-  .nav-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+  .nav-icon { font-size: 16px; display: block; margin-bottom: 2px; }
 
   /* ===== FAB ===== */
   .fab {
@@ -466,7 +509,7 @@
   .modal-close { font-size: 22px; color: var(--gray-muted); cursor: pointer; background: none; border: none; }
 
   .form-field { margin-bottom: 16px; }
-  .form-field label { font-size: 12px; color: var(--gray-muted); display: block; margin-bottom: 7px; font-weight: 700; }
+  .form-field label { font-size: 16px; color: var(--gray-muted); display: block; margin-bottom: 7px; font-weight: 700; }
   .form-field input, .form-field select {
     width: 100%;
     padding: 13px 14px;
@@ -484,7 +527,7 @@
     padding: 9px 15px;
     border-radius: 100px;
     border: 1px solid var(--line);
-    font-size: 13px;
+    font-size: 15px;
     background: var(--white);
     color: var(--ink-soft);
     cursor: pointer;
@@ -507,7 +550,8 @@
     justify-content: space-between;
     align-items: center;
   }
-  .drum-select-btn::after { content: '▾'; font-size: 11px; color: var(--gray-muted); }
+  .drum-select-btn::after { content: '▾'; font-size: 15px; color: var(--gray-muted); }
+  .drum-select-btn.set { border-color: var(--sage); color: var(--sage-deep); font-weight: 700; }
   .drum-select-btn.empty { color: var(--gray-muted); }
 
   .submit-btn {
@@ -541,7 +585,7 @@
     color: #fff;
     padding: 11px 22px;
     border-radius: 100px;
-    font-size: 13px;
+    font-size: 15px;
     z-index: 999;
     opacity: 0;
     transition: all 0.25s;
@@ -570,7 +614,7 @@
     box-shadow: 0 16px 40px rgba(0,0,0,0.25);
   }
   .confirm-message {
-    font-size: 14.5px;
+    font-size: 16.5px;
     color: var(--ink);
     line-height: 1.7;
     margin-bottom: 20px;
@@ -584,7 +628,7 @@
     border-radius: 12px;
     border: none;
     font-family: 'Zen Maru Gothic', sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
   }
@@ -665,20 +709,35 @@
       <div class="summary-label">今月の収支</div>
       <div class="summary-balance" id="home-balance">¥0</div>
       <div class="summary-row">
-        <span class="label"><span class="dot income"></span>収入</span>
+        <span class="label"><span class="dot income"></span>先月の収入</span>
         <span class="value" id="home-income">¥0</span>
       </div>
       <div class="summary-row">
-        <span class="label"><span class="dot expense"></span>支出</span>
+        <span class="label"><span class="dot expense"></span>今月の支出</span>
         <span class="value" id="home-expense">¥0</span>
       </div>
     </div>
 
-    <button class="income-input-btn" onclick="goToIncomeSettings()">
-      <span style="font-size:16px">＋</span>
-      <span>収入を入力する</span>
-      <span style="font-size:12px;color:var(--terracotta-soft);margin-left:auto">設定 › 収入 →</span>
-    </button>
+    <!-- 先取り貯金 -->
+    <div class="savings-first-card" id="savings-first-card">
+      <div class="savings-first-label">
+        <span style="font-size:16px">🏦</span>
+        <span>先取り貯金</span>
+        <span class="savings-notice" id="savings-notice"></span>
+      </div>
+      <button class="savings-first-btn-open" onclick="openSavingsTxModal()">＋ 先取り貯金を記帳する</button>
+      <div id="savings-first-history"></div>
+    </div>
+
+    <!-- 今月の収入 -->
+    <div class="savings-first-card" style="border-left-color:var(--terracotta)">
+      <div class="savings-first-label" style="color:var(--terracotta)">
+        <span style="font-size:15px">💰</span>
+        <span style="color:var(--terracotta)">今月の収入</span>
+      </div>
+      <button class="savings-first-btn-open" style="border-color:var(--terracotta-soft);background:rgba(193,104,63,0.08);color:var(--terracotta)" onclick="goToIncomeSettings()">＋ 収入を入力する（設定 › 収入）</button>
+      <div id="income-history"></div>
+    </div>
 
     <div class="section-title">
       <span class="label">項目別の内訳</span>
@@ -726,6 +785,13 @@
   </div>
 </div>
 
+<!-- ===== 封筒管理画面 ===== -->
+<div class="page" id="page-envelope">
+  <div class="content" id="envelope-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
 <!-- ===== 設定画面 ===== -->
 <div class="page" id="page-settings">
   <div class="content" id="settings-content">
@@ -746,6 +812,9 @@
   </button>
   <button class="nav-item" data-page="cards" onclick="goToPage('cards')">
     <span class="nav-icon">💳</span>カード
+  </button>
+  <button class="nav-item" data-page="envelope" onclick="goToPage('envelope')">
+    <span class="nav-icon">✉️</span>封筒
   </button>
   <button class="nav-item" data-page="analysis" onclick="goToPage('analysis')">
     <span class="nav-icon">📊</span>分析
@@ -801,6 +870,18 @@
   </div>
 </div>
 
+<!-- 取引履歴モーダル（項目・カードタップ用） -->
+<div class="modal-overlay" id="history-modal-overlay">
+  <div class="modal-sheet" style="max-height:80vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span id="history-modal-title">取引履歴</span>
+      <button class="modal-close" onclick="closeHistoryModal()">×</button>
+    </div>
+    <div id="history-modal-body"></div>
+  </div>
+</div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -838,13 +919,13 @@ const DEFAULT_CATEGORIES = [
   {name:'電気', group:'固定費', budget:15000},
   {name:'通信費', group:'固定費', budget:45000},
   {name:'車', group:'固定費', budget:0},
-  {name:'貯金', group:'貯蓄返済', budget:64000},
-  {name:'七海貯金', group:'貯蓄返済', budget:10000},
-  {name:'結桜貯金', group:'貯蓄返済', budget:10000},
-  {name:'返済', group:'貯蓄返済', budget:36000},
-  {name:'建て替え', group:'貯蓄返済', budget:0},
-  {name:'車検', group:'貯蓄返済', budget:5000},
-  {name:'更新費', group:'貯蓄返済', budget:5000},
+  {name:'貯金', group:'貯蓄', budget:64000},
+  {name:'七海貯金', group:'貯蓄', budget:10000},
+  {name:'結桜貯金', group:'貯蓄', budget:10000},
+  {name:'車検', group:'貯蓄', budget:5000},
+  {name:'更新費', group:'貯蓄', budget:5000},
+  {name:'返済', group:'返済', budget:36000},
+  {name:'建て替え', group:'返済', budget:0},
   {name:'NISA', group:'投資保険', budget:0},
   {name:'iDeCo', group:'投資保険', budget:0},
   {name:'株式', group:'投資保険', budget:0},
@@ -920,6 +1001,17 @@ function loadLocalState(){
   AppState.transactions = stor('kk_transactions');
   AppState.cardBillings = stor('kk_card_billings') || {};
 
+  // マイグレーション: 「貯蓄返済」グループを「貯蓄」「返済」に分割
+  const savingsNames = ['貯金','七海貯金','結桜貯金','車検','更新費'];
+  let migrated = false;
+  AppState.categories.forEach(c => {
+    if (c.group === '貯蓄返済') {
+      c.group = savingsNames.includes(c.name) ? '貯蓄' : '返済';
+      migrated = true;
+    }
+  });
+  if (migrated) stor('kk_categories', AppState.categories);
+
   if (AppState.transactions === null) {
     AppState.transactions = buildTransactionsFromHistorical();
     AppState.cardBillings = buildCardBillingsFromHistorical();
@@ -991,18 +1083,43 @@ function getMonthSummary(ym){
   const byCategory = {};
   txs.forEach(t => {
     byCategory[t.category] = (byCategory[t.category]||0) + t.amount;
-    expense += t.amount;
+    if (!t.isIncome) {
+      expense += t.amount;
+    }
   });
 
+  // 収入は kk_income_history の各項目の「最新の保存値」の合計を使う
+  // 同じ月に同じ項目を複数回保存した場合は最後の1件を使う
+  const incomeFromHistory = calcIncomeFromHistory(ym);
+
+  // kk_income_actualも参照（過去データ・Excelからの引き継ぎデータとの互換性）
   const incomeActual = getIncomeActualForMonth(ym);
-  const income = Object.values(incomeActual).reduce((a,b) => {
+  const incomeFromActual = Object.values(incomeActual).reduce((a,b) => {
     const v = typeof b === 'object' ? (b.amount || 0) : (b || 0);
     return a + v;
   }, 0);
 
+  // kk_income_historyに保存がある月はその合計を優先、なければkk_income_actual
+  const income = incomeFromHistory > 0 ? incomeFromHistory : incomeFromActual;
+
   const budgetTotal = AppState.categories.reduce((a,c)=>a+(c.budget||0), 0);
 
   return { income, expense, byCategory, budgetTotal, balance: income - expense, budgetDiff: budgetTotal - expense };
+}
+
+// 各収入項目の「最新保存値」を合算した収入合計
+function calcIncomeFromHistory(ym){
+  const hist = stor('kk_income_history') || {};
+  const ymHist = hist[ym] || {};
+  let total = 0;
+  Object.keys(ymHist).forEach(name => {
+    const entries = ymHist[name];
+    if (entries && entries.length > 0) {
+      // 最後に保存した値を採用
+      total += entries[entries.length - 1].amount || 0;
+    }
+  });
+  return total;
 }
 
 function getIncomeActualForMonth(ym){
@@ -1022,7 +1139,7 @@ function setIncomeActualForMonth(ym, data){
 
 function getCardUsageForMonth(ym, cardName){
   const txs = getTransactionsForMonth(ym);
-  return txs.filter(t => t.method === cardName).reduce((a,t)=>a+t.amount, 0);
+  return txs.filter(t => t.method === cardName && !t.isIncome).reduce((a,t)=>a+t.amount, 0);
 }
 
 function getCardBillingForMonth(ym, cardName){
@@ -1051,7 +1168,7 @@ function goToPage(page){
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === page);
   });
-  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', settings:'設定'};
+  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', envelope:'封筒管理', settings:'設定'};
   document.getElementById('page-title').textContent = titles[page] || '家計手帖';
   document.getElementById('month-selector-wrap').style.display = (page==='settings') ? 'none' : 'flex';
   document.getElementById('fab-add').style.display = (page==='settings') ? 'none' : 'flex';
@@ -1060,6 +1177,7 @@ function goToPage(page){
   if (page === 'history') renderHistory();
   if (page === 'analysis') renderAnalysis();
   if (page === 'cards') renderCards();
+  if (page === 'envelope') renderEnvelopePage();
   if (page === 'settings') renderSettings();
 
   scrollToTop();
@@ -1084,6 +1202,7 @@ function changeMonth(delta){
   if (activePage === 'history') renderHistory();
   if (activePage === 'analysis') renderAnalysis();
   if (activePage === 'cards') renderCards();
+  if (activePage === 'envelope') renderEnvelopePage();
 }
 
 /* ============================================================
@@ -1093,12 +1212,25 @@ function renderHome(){
   const ym = AppState.currentMonth;
   const summary = getMonthSummary(ym);
 
-  const balEl = document.getElementById('home-balance');
-  balEl.innerHTML = `<span class="yen">¥</span>${Math.round(summary.balance).toLocaleString()}`;
-  balEl.classList.toggle('minus', summary.balance < 0);
+  // 先月の収入を取得
+  const [y,m] = ym.split('-').map(Number);
+  const prevDate = new Date(y, m-2, 1);
+  const prevYm = `${prevDate.getFullYear()}-${pad2(prevDate.getMonth()+1)}`;
+  const prevSummary = getMonthSummary(prevYm);
 
-  document.getElementById('home-income').textContent = fmtYen(summary.income);
+  // 収支バランス = 先月収入 - 今月支出
+  const balance = prevSummary.income - summary.expense;
+
+  const balEl = document.getElementById('home-balance');
+  balEl.innerHTML = `<span class="yen">¥</span>${Math.round(balance).toLocaleString()}`;
+  balEl.classList.toggle('minus', balance < 0);
+
+  document.getElementById('home-income').textContent = fmtYen(prevSummary.income);
   document.getElementById('home-expense').textContent = fmtYen(summary.expense);
+
+  // 先取り貯金・収入の表示
+  renderSavingsFirst(ym);
+  renderIncomeHistory(ym);
 
   const catListEl = document.getElementById('home-category-list');
   const sortedCats = AppState.categories
@@ -1114,10 +1246,10 @@ function renderHome(){
       const pct = c.budget > 0 ? Math.min(100, (c.actual / c.budget) * 100) : (c.actual > 0 ? 100 : 0);
       const over = c.budget > 0 && c.actual > c.budget;
       return `
-        <div class="cat-item">
+        <div class="cat-item" style="cursor:pointer" onclick="openCategoryHistoryModal('${escapeJs(c.name)}')">
           <div class="cat-item-top">
             <span class="cat-name">${escapeHtml(c.name)}</span>
-            <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''}</span>
+            <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
           </div>
           <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
         </div>`;
@@ -1137,12 +1269,12 @@ function renderHome(){
       diffHtml = `<span style="color:${ok?'var(--sage)':'var(--red-deficit)'};font-weight:700">${ok?'差 ±0':'差 '+fmtYenSigned(diff)}</span>`;
     }
     return `
-      <div class="cat-item">
+      <div class="cat-item" style="cursor:pointer" onclick="openCardHistoryModal('${escapeJs(card.name)}')">
         <div class="cat-item-top">
           <span class="cat-name">${escapeHtml(card.name)}</span>
-          <span class="cat-amount">利用 ${fmtYen(usage)}</span>
+          <span class="cat-amount">利用 ${fmtYen(usage)} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
         </div>
-        <div style="font-size:11.5px;text-align:right">${billed!==null?`請求 ${fmtYen(billed)} ・ `:''}${diffHtml}</div>
+        <div style="font-size:15.5px;text-align:right">${billed!==null?`請求 ${fmtYen(billed)} ・ `:''}${diffHtml}</div>
       </div>`;
   }).filter(Boolean);
 
@@ -1159,9 +1291,184 @@ function renderHome(){
           <span class="cat-name">${escapeHtml(t.category)}</span>
           <span class="cat-amount">${fmtYen(t.amount)}</span>
         </div>
-        <div style="font-size:11px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
+        <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
       </div>`).join('');
   }
+}
+
+/* ============================================================
+   先取り貯金
+   ============================================================ */
+
+function renderSavingsFirst(ym){
+  const noticeEl = document.getElementById('savings-notice');
+  const historyEl = document.getElementById('savings-first-history');
+
+  const today = new Date();
+  const [y,m] = ym.split('-').map(Number);
+  const isCurrentMonth = today.getFullYear()===y && today.getMonth()+1===m;
+  const isMonthStart = today.getDate() <= 5;
+  if (noticeEl) {
+    noticeEl.textContent = (isCurrentMonth && isMonthStart) ? '💰 月初に貯金！' : '';
+  }
+
+  if (!historyEl) return;
+
+  // 「貯蓄」グループの今月の記帳を履歴として表示
+  const savingsCats = new Set(AppState.categories.filter(c=>c.group==='貯蓄').map(c=>c.name));
+  const txs = getTransactionsForMonth(ym)
+    .filter(t => savingsCats.has(t.category))
+    .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+
+  const total = txs.reduce((a,t)=>a+t.amount, 0);
+
+  if (txs.length === 0) {
+    historyEl.innerHTML = `<div style="font-size:14px;color:var(--gray-muted);padding:4px 0">まだ先取り貯金の記帳がありません</div>`;
+  } else {
+    historyEl.innerHTML = `
+      <div style="font-size:14px;font-weight:700;color:var(--sage-deep);margin-bottom:8px">
+        合計 ${fmtYen(total)}（${txs.length}件）
+      </div>
+      ${txs.map(t => `
+        <div class="cat-item" style="cursor:pointer;padding:10px 0" onclick="closeHistoryModal();openTxModal('${t.id}')">
+          <div class="cat-item-top">
+            <span class="cat-name">${escapeHtml(t.category)}</span>
+            <span class="cat-amount">${fmtYen(t.amount)}</span>
+          </div>
+          <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
+        </div>`).join('')}`;
+  }
+}
+
+function renderIncomeHistory(ym){
+  const histEl = document.getElementById('income-history');
+  if (!histEl) return;
+
+  // 全収入項目の保存履歴をまとめて表示
+  const allEntries = [];
+  AppState.incomeSources.forEach(s => {
+    const hist = getIncomeHistoryForMonth(ym, s.name);
+    hist.forEach(h => allEntries.push({ ...h, name: s.name }));
+  });
+  allEntries.sort((a,b) => b.savedAt - a.savedAt);
+
+  const total = allEntries.reduce((a,h)=>a+h.amount, 0);
+
+  if (allEntries.length === 0) {
+    histEl.innerHTML = `<div style="font-size:14px;color:var(--gray-muted);padding:4px 0">まだ収入が入力されていません</div>`;
+  } else {
+    histEl.innerHTML = `
+      <div style="font-size:14px;font-weight:700;color:var(--terracotta);margin-bottom:8px">
+        合計 ${fmtYen(total)}（${allEntries.length}件）
+      </div>
+      ${allEntries.map(h => {
+        const d = new Date(h.savedAt);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--cream-deep)">
+          <div>
+            <div style="font-size:14px;font-weight:700">${escapeHtml(h.name)}</div>
+            <div style="font-size:13px;color:var(--gray-muted)">${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}</div>
+          </div>
+          <div style="font-size:15px;font-weight:700">${fmtYen(h.amount)}</div>
+        </div>`;
+      }).join('')}`;
+  }
+}
+
+function openIncomeTxModal(){
+  // 収入記帳ボタンは設定の収入タブへ遷移する形に変更
+  goToIncomeSettings();
+}
+
+function openSavingsTxModal(){
+  // 貯蓄カテゴリの先頭・現金をデフォにして通常の記帳モーダルを開く
+  const savingsCats = AppState.categories.filter(c=>c.group==='貯蓄').map(c=>c.name);
+  const cashMethod = AppState.paymentMethods.find(m=>m.name==='現金');
+  _selectedTxCategory = savingsCats[0] || AppState.categories[0]?.name || null;
+  _selectedTxMethod = cashMethod ? '現金' : AppState.paymentMethods[0]?.name || null;
+
+  // 記帳モーダルを開く（カテゴリと支払い方法を貯蓄グループ限定でチップ表示）
+  AppState.editingTxId = null;
+  document.getElementById('tx-modal-title').textContent = '先取り貯金を記帳';
+  document.getElementById('tx-date').value = todayYMD();
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-memo').value = '';
+  document.getElementById('tx-delete-btn').style.display = 'none';
+  document.getElementById('tx-submit-btn').textContent = '記帳する';
+
+  // 項目チップは貯蓄グループのみ
+  buildTxCategoryChipsSavings(savingsCats);
+  // 支払い方法は通常通り（現金デフォ）
+  buildChipsMethodsWithDefault(_selectedTxMethod);
+
+  document.getElementById('tx-modal-overlay').classList.add('show');
+}
+
+function buildTxCategoryChipsSavings(names){
+  const el = document.getElementById('tx-category-chips-wrap');
+  if (!el) {
+    // ドラムボタンを貯蓄限定に差し替え
+    const btn = document.getElementById('tx-category-trigger');
+    if (btn) {
+      btn.textContent = _selectedTxCategory || names[0];
+      btn.onclick = () => {
+        _drumTargetField = 'tx-category';
+        buildDrumDOM('貯蓄項目を選択', names, _selectedTxCategory || names[0]);
+      };
+    }
+  }
+}
+
+function buildChipsMethodsWithDefault(defaultMethod){
+  const methods = AppState.paymentMethods.map(m=>m.name);
+  const btn = document.getElementById('tx-method-trigger');
+  if (btn) {
+    btn.textContent = defaultMethod || methods[0];
+    btn.onclick = () => openTxFieldDrum('method');
+  }
+}
+
+function openCategoryHistoryModal(catName){
+  const ym = AppState.currentMonth;
+  const txs = getTransactionsForMonth(ym).filter(t => t.category === catName);
+  openHistoryModal(`${catName}の明細（${monthLabel(ym)}）`, txs);
+}
+
+function openCardHistoryModal(cardName, targetYm){
+  const ym = targetYm || AppState.currentMonth;
+  const txs = getTransactionsForMonth(ym).filter(t => t.method === cardName);
+  openHistoryModal(`${cardName}の明細（${monthLabel(ym)}）`, txs);
+}
+
+/* ============================================================
+   取引履歴モーダル（項目・カードタップで呼び出し）
+   ============================================================ */
+function openHistoryModal(title, txs){
+  document.getElementById('history-modal-title').textContent = title;
+  const body = document.getElementById('history-modal-body');
+  const sorted = txs.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  const total = sorted.reduce((a,t)=>a+t.amount,0);
+  if (sorted.length === 0) {
+    body.innerHTML = '<div class="empty-hint">この月の記帳がありません</div>';
+  } else {
+    body.innerHTML = `
+      <div style="font-size:14px;color:var(--gray-muted);padding:0 0 12px;border-bottom:1px dashed var(--line);margin-bottom:4px">
+        合計 <strong style="color:var(--ink);font-size:16px">${fmtYen(total)}</strong>（${sorted.length}件）
+      </div>
+      ${sorted.map(t => `
+        <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+          <div class="cat-item-top">
+            <span class="cat-name">${escapeHtml(t.category)}</span>
+            <span class="cat-amount">${fmtYen(t.amount)}</span>
+          </div>
+          <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
+        </div>`).join('')}
+    `;
+  }
+  document.getElementById('history-modal-overlay').classList.add('show');
+}
+
+function closeHistoryModal(){
+  document.getElementById('history-modal-overlay').classList.remove('show');
 }
 
 function escapeHtml(s){
@@ -1173,6 +1480,7 @@ function escapeHtml(s){
    ============================================================ */
 let _selectedTxCategory = null;
 let _selectedTxMethod = null;
+let _txIsIncome = false;  // 収入記帳モーダルから開かれたかどうかのフラグ
 
 function updateTxFieldTriggerLabels(){
   const catBtn = document.getElementById('tx-category-trigger');
@@ -1204,6 +1512,7 @@ function openTxFieldDrum(field){
 
 function openTxModal(txId){
   AppState.editingTxId = txId || null;
+  _txIsIncome = false;  // 通常記帳なのでフラグOFF（収入モーダル以外から開く場合）
   const expenseCats = AppState.categories.map(c=>c.name);
   const methods = AppState.paymentMethods.map(m=>m.name);
 
@@ -1250,16 +1559,20 @@ function submitTransaction(){
     if (tx) {
       tx.date = date; tx.amount = amount; tx.category = _selectedTxCategory;
       tx.method = _selectedTxMethod; tx.memo = memo;
+      // isIncomeフラグは編集時も引き継ぐ（収入として記帳したものは収入のまま）
     }
     showToast('記録を更新しました');
   } else {
     AppState.transactions.push({
       id: nextTxId(), date, amount, category: _selectedTxCategory,
-      method: _selectedTxMethod, memo, createdAt: Date.now()
+      method: _selectedTxMethod, memo,
+      isIncome: _txIsIncome || false,  // 収入記帳フラグ
+      createdAt: Date.now()
     });
     showToast('記帳しました');
   }
 
+  _txIsIncome = false;  // フラグリセット
   saveLocalState();
   closeTxModal();
   refreshActivePage();
@@ -1405,8 +1718,8 @@ function renderHistory(){
   let html = `
     <div class="history-summary-bar">
       <div>
-        <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(ym)}の記帳件数</div>
-        <div style="font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700">${txs.length}件 <span style="font-size:13px;color:var(--ink-soft);font-weight:400">/ ${fmtYen(total)}</span></div>
+        <div style="font-size:16px;color:var(--gray-muted)">${monthLabel(ym)}の記帳件数</div>
+        <div style="font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700">${txs.length}件 <span style="font-size:16px;color:var(--ink-soft);font-weight:400">/ ${fmtYen(total)}</span></div>
       </div>
     </div>
 
@@ -1469,7 +1782,7 @@ function historyRowHtml(t){
         <span class="cat-name">${escapeHtml(t.category)}</span>
         <span class="cat-amount">${fmtYen(t.amount)}</span>
       </div>
-      <div style="font-size:11px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
+      <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
     </div>`;
 }
 
@@ -1706,23 +2019,50 @@ function setMonthlyBudgets(ym, budgets){
   if (currentUser) saveToFirestore();
 }
 
+function getEnvelopeResetYm(){
+  return stor('kk_envelope_reset_ym') || null;
+}
+
+function setEnvelopeResetYm(ym){
+  stor('kk_envelope_reset_ym', ym);
+  if (currentUser) saveToFirestore();
+}
+
 function getEnvelopeBalance(ym, catName){
-  // 封筒残高 = 前月繰越 + 当月予算 - 当月実績
-  // 前月繰越 = 前月封筒残高（再帰）
-  // ただし初月（データなし）は0スタート
-  const [y,m] = ym.split('-').map(Number);
-  const prev = new Date(y, m-2, 1);
-  const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
+  const resetYm = getEnvelopeResetYm();
 
   const monthlyBudgets = getMonthlyBudgets(ym);
   const budget = monthlyBudgets[catName] !== undefined ? monthlyBudgets[catName] : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
   const summary = getMonthSummary(ym);
   const actual = summary.byCategory[catName] || 0;
 
-  // 前月の繰越（過去データがある月まで遡る）
-  const hasPrevData = getTransactionsForMonth(prevYm).length > 0 || stor('kk_monthly_budgets')?.[prevYm];
-  const prevBalance = hasPrevData ? getEnvelopeBalance(prevYm, catName) : 0;
+  // 基準年月以前は繰越なし（その月単体で計算）
+  if (resetYm && ym <= resetYm) {
+    return budget - actual;
+  }
 
+  // 基準年月が未設定の場合：データが何もない月は打ち切り（繰越0）
+  if (!resetYm) {
+    const hasData = getTransactionsForMonth(ym).length > 0 || actual > 0 || (stor('kk_monthly_budgets') || {})[ym];
+    if (!hasData && budget === ((AppState.categories.find(c=>c.name===catName)||{}).budget || 0)) {
+      // デフォルト予算で実績もない月はデータなしとみなす
+      const tx = AppState.transactions;
+      const oldest = tx.length > 0 ? tx.reduce((a,b) => a.date < b.date ? a : b).date.slice(0,7) : ym;
+      if (ym < oldest) return 0; // データより古い月はゼロ
+    }
+  }
+
+  // 前月の封筒残高を繰越す
+  const [y,m] = ym.split('-').map(Number);
+  const prev = new Date(y, m-2, 1);
+  const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
+
+  // 最古データより前の月はゼロ（無限遡及防止）
+  const tx = AppState.transactions;
+  const oldestYm = tx.length > 0 ? tx.reduce((a,b) => a.date < b.date ? a : b).date.slice(0,7) : ym;
+  if (prevYm < (resetYm || oldestYm)) return budget - actual;
+
+  const prevBalance = getEnvelopeBalance(prevYm, catName);
   return prevBalance + budget - actual;
 }
 
@@ -1772,64 +2112,15 @@ function renderAnalysis(){
   });
   const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
 
-  const envelopes = getEnvelopesForMonth(ym);
-  const totalEnvBalance = envelopes.reduce((a,e)=>a+e.balance, 0);
-  const maxEnvAbs = Math.max(1, ...envelopes.map(e=>Math.abs(e.balance)));
-  const monthlyBudgets = getMonthlyBudgets(ym);
-
   let html = `
-    <div class="section-title" style="margin-top:0">
-      <span class="label">封筒管理</span>
-      <span class="section-link" onclick="toggleEnvelopeEdit()">予算を編集</span>
-    </div>
-
-    <!-- 合計残高 -->
-    <div class="card" style="padding:16px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:12px;color:var(--gray-muted)">${monthLabel(ym)}の封筒残高合計</div>
-      <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700;color:${totalEnvBalance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(totalEnvBalance).replace('+','')}</div>
-    </div>
-
-    <!-- 封筒一覧 -->
-    <div class="card category-list" id="envelope-list">
-      ${envelopes.length === 0 ? '<div class="empty-hint">データがありません</div>' : envelopes.map(e => {
-        const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
-        const over = e.balance < 0;
-        return `
-          <div class="cat-item">
-            <div class="cat-item-top">
-              <span class="cat-name">${escapeHtml(e.name)}</span>
-              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')}</span>
-            </div>
-            <div style="font-size:11px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
-            <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
-          </div>`;
-      }).join('')}
-    </div>
-
-    <!-- 月次予算編集（折りたたみ） -->
-    <div id="envelope-edit-panel" style="display:none;margin-top:10px">
-      <div class="card category-list">
-        <div style="font-size:12px;color:var(--gray-muted);padding:12px 0 6px">${monthLabel(ym)}の予算（個別設定。変更しても他月に影響しません）</div>
-        ${envelopes.map(e => `
-          <div class="settings-row">
-            <div class="settings-row-top" style="margin-bottom:0">
-              <span style="font-size:13px;font-weight:700;flex:1">${escapeHtml(e.name)}</span>
-              <input type="number" class="settings-input-amt" style="width:110px;flex:none" value="${e.budget}"
-                onchange="updateMonthlyBudget('${escapeJs(ym)}','${escapeJs(e.name)}',this.value)">
-            </div>
-          </div>`).join('')}
-        <button class="settings-add-btn" onclick="saveMonthlyBudgets('${escapeJs(ym)}')">この月の予算を確定する</button>
-      </div>
-    </div>
-
-    <div class="kpi-grid" style="margin-top:18px">
-      <div class="kpi-card">
-        <div class="kpi-label">収入</div>
+    <div class="kpi-grid" style="margin-top:0">
+      <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('income')">
+        <div class="kpi-label">収入 <span style="font-size:11px;color:var(--gray-muted)">› 履歴</span></div>
         <div class="kpi-value" style="font-size:22px">${fmtYen(summary.income)}</div>
         ${balanceDelta !== null ? `<span class="kpi-delta ${balanceDelta>=0?'up':'down'}">先月比 ${fmtYenSigned(balanceDelta)}</span>` : ''}
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">支出</div>
+      <div class="kpi-card" style="cursor:pointer" onclick="openIncomeExpenseHistoryModal('expense')">
+        <div class="kpi-label">支出 <span style="font-size:11px;color:var(--gray-muted)">› 履歴</span></div>
         <div class="kpi-value" style="font-size:22px">${fmtYen(summary.expense)}</div>
       </div>
     </div>
@@ -1892,7 +2183,7 @@ function renderAnalysis(){
     <div class="ai-card" id="ai-analysis-card">
       <div class="ai-card-title">✦ 今月のポイント</div>
       <div id="ai-analysis-body">
-        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:16.5px;color:var(--ink-soft)">
           <div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div>分析中...
         </div>
       </div>
@@ -1906,10 +2197,214 @@ function renderAnalysis(){
 
 let _envelopeEditBudgets = {};
 
+/* ============================================================
+   封筒管理ページ（独立ページ）
+   ============================================================ */
+function renderEnvelopePage(){
+  const ym = AppState.currentMonth;
+  const envelopes = getEnvelopesForMonth(ym);
+  const totalEnvBalance = envelopes.reduce((a,e)=>a+e.balance, 0);
+  const resetYm = getEnvelopeResetYm();
+
+  let html = `
+    <!-- 合計残高 + リセット情報 -->
+    <div class="card" style="padding:16px 18px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${resetYm?'8px':'0'}">
+        <div>
+          <div style="font-size:14px;color:var(--gray-muted)">${monthLabel(ym)}の封筒残高合計</div>
+          <div style="font-family:'Shippori Mincho',serif;font-size:24px;font-weight:700;color:${totalEnvBalance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(totalEnvBalance).replace('+','')}</div>
+        </div>
+        <button onclick="openEnvelopeResetDrum()" style="padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--white);font-size:14px;font-weight:700;color:var(--gray-muted);font-family:inherit;cursor:pointer">↺ リセット</button>
+      </div>
+      ${resetYm ? `<div style="font-size:13px;color:var(--terracotta);background:rgba(193,104,63,0.08);padding:6px 10px;border-radius:8px">基準年月：${monthLabel(resetYm)}〜（それ以前の繰越は無視）</div>` : ''}
+    </div>
+
+    <div class="section-title" style="margin-top:0">
+      <span class="label">封筒一覧</span>
+      <span class="section-link" onclick="toggleEnvelopeEdit()">予算を編集</span>
+    </div>
+
+    <div class="card category-list" id="envelope-list">
+      ${envelopes.length === 0 ? '<div class="empty-hint">データがありません</div>' : envelopes.map(e => {
+        const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
+        const over = e.balance < 0;
+        return `
+          <div class="cat-item" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
+            <div class="cat-item-top">
+              <span class="cat-name">${escapeHtml(e.name)}</span>
+              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+            </div>
+            <div style="font-size:14px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
+            <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
+          </div>`;
+      }).join('')}
+    </div>
+
+    <!-- 月次予算編集（折りたたみ） -->
+    <div id="envelope-edit-panel" style="display:none;margin-top:10px">
+      <div class="card category-list">
+        <div style="font-size:14px;color:var(--gray-muted);padding:12px 0 6px">${monthLabel(ym)}の予算（個別設定。他月に影響しません）</div>
+        ${envelopes.map(e => `
+          <div class="settings-row">
+            <div class="settings-row-top" style="margin-bottom:0">
+              <span style="font-size:15px;font-weight:700;flex:1">${escapeHtml(e.name)}</span>
+              <input type="number" class="settings-input-amt" style="width:110px;flex:none" value="${e.budget}"
+                onchange="updateMonthlyBudget('${escapeJs(ym)}','${escapeJs(e.name)}',this.value)">
+            </div>
+          </div>`).join('')}
+        <button class="settings-add-btn" onclick="saveMonthlyBudgets('${escapeJs(ym)}')">この月の予算を確定する</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('envelope-content').innerHTML = html;
+  injectAnalysisStyles();
+  injectSettingsStyles();
+}
+
 function toggleEnvelopeEdit(){
   const panel = document.getElementById('envelope-edit-panel');
   if (!panel) return;
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+/* ── 封筒リセット（年月2列ドラム） ── */
+let _envelopeResetScrolls = [];
+
+function openEnvelopeResetDrum(){
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth()+1;
+  const years  = Array.from({length:5}, (_,i) => String(curY - 2 + i));
+  const months = Array.from({length:12}, (_,i) => String(i+1));
+  const resetYm = getEnvelopeResetYm();
+  const [ry, rm] = resetYm ? resetYm.split('-') : [String(curY), String(curM)];
+
+  let existing = document.getElementById('drum3-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'drum-overlay show';
+  overlay.id = 'drum3-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const ITEM_H = 44, PAD = 2;
+  const cols = [
+    {label:'年', values: years,  cur: ry,  fmt: v => v+'年'},
+    {label:'月', values: months, cur: rm.replace(/^0/,''), fmt: v => v+'月'},
+  ];
+
+  overlay.innerHTML = `
+    <div class="drum-sheet">
+      <div class="drum-toolbar">
+        <button class="drum-cancel" onclick="document.getElementById('drum3-overlay').remove();_envelopeResetScrolls=[]">キャンセル</button>
+        <span class="drum-title">封筒の基準年月を設定</span>
+        <button class="drum-done" onclick="closeEnvelopeResetDrum()">決定</button>
+      </div>
+      <div style="font-size:13px;color:var(--terracotta);text-align:center;padding:8px 16px 0">この月以前の繰越を無視してリセットします</div>
+      <div class="drum-body" id="drum3-body"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  _envelopeResetScrolls = [];
+  const body = document.getElementById('drum3-body');
+  cols.forEach(col => {
+    const colEl = document.createElement('div');
+    colEl.className = 'drum-col'; colEl.style.position = 'relative';
+    const lbl = document.createElement('div');
+    lbl.className = 'drum-col-label'; lbl.textContent = col.label;
+    const scroll = document.createElement('div');
+    scroll.className = 'drum-scroll';
+    for (let p=0;p<PAD;p++){const pad=document.createElement('div');pad.className='drum-item';scroll.appendChild(pad);}
+    col.values.forEach(v=>{const item=document.createElement('div');item.className='drum-item';item.textContent=col.fmt(v);scroll.appendChild(item);});
+    for (let p=0;p<PAD;p++){const pad=document.createElement('div');pad.className='drum-item';scroll.appendChild(pad);}
+    const hl = document.createElement('div'); hl.className = 'drum-highlight';
+    colEl.appendChild(lbl); colEl.appendChild(scroll); colEl.appendChild(hl);
+    body.appendChild(colEl);
+    const curIdx = Math.max(0, col.values.indexOf(col.cur));
+    requestAnimationFrame(()=>{ scroll.scrollTop = curIdx * ITEM_H; updateDrumHighlight(scroll); });
+    scroll.addEventListener('scroll', ()=>updateDrumHighlight(scroll), {passive:true});
+    _envelopeResetScrolls.push({scroll, values: col.values});
+  });
+}
+
+function closeEnvelopeResetDrum(){
+  const ITEM_H = 44;
+  const [yScroll, mScroll] = _envelopeResetScrolls;
+  const yIdx = Math.max(0, Math.min(yScroll.values.length-1, Math.round(yScroll.scroll.scrollTop/ITEM_H)));
+  const mIdx = Math.max(0, Math.min(mScroll.values.length-1, Math.round(mScroll.scroll.scrollTop/ITEM_H)));
+  const y = yScroll.values[yIdx];
+  const m = mScroll.values[mIdx];
+  const newResetYm = `${y}-${pad2(m)}`;
+
+  const overlay = document.getElementById('drum3-overlay');
+  if (overlay) overlay.remove();
+  _envelopeResetScrolls = [];
+
+  showConfirm(`${y}年${m}月を封筒の基準年月にします。\nこれ以前の繰越残高は無視されます。よろしいですか？`, () => {
+    setEnvelopeResetYm(newResetYm);
+    showToast(`封筒の基準年月を${y}年${m}月に設定しました`);
+    renderEnvelopePage();
+  }, '設定する');
+}
+
+/* ── 封筒月別履歴モーダル ── */
+function openEnvelopeHistoryModal(catName){
+  const currentYm = AppState.currentMonth;
+  const resetYm = getEnvelopeResetYm();
+
+  // 基準年月から現在月まで（基準年月未設定なら直近12ヶ月）
+  let months;
+  if (resetYm) {
+    // resetYmから現在月まで全月を列挙
+    months = [];
+    let [ry, rm] = resetYm.split('-').map(Number);
+    const [cy, cm] = currentYm.split('-').map(Number);
+    while (ry < cy || (ry === cy && rm <= cm)) {
+      months.push(`${ry}-${pad2(rm)}`);
+      rm++;
+      if (rm > 12) { rm = 1; ry++; }
+    }
+    months.reverse(); // 新しい月を先頭に
+  } else {
+    months = getPastMonths(currentYm, 12);
+  }
+
+  const rows = months.map(ym => {
+    const monthlyBudgets = getMonthlyBudgets(ym);
+    const budget = monthlyBudgets[catName] !== undefined ? monthlyBudgets[catName] : (AppState.categories.find(c=>c.name===catName)||{}).budget || 0;
+    const summary = getMonthSummary(ym);
+    const actual = summary.byCategory[catName] || 0;
+    const balance = getEnvelopeBalance(ym, catName);
+    const diff = budget - actual;
+    return { ym, budget, actual, balance, diff };
+  });
+
+  const bodyContent = `
+    <div style="margin-bottom:16px">
+      ${rows.length === 0 ? '<div class="empty-hint">データがありません</div>' : rows.map(r => `
+        <div style="border-bottom:1px solid var(--cream-deep);padding:12px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:15px;font-weight:700">${monthLabel(r.ym)}</span>
+            <span style="font-size:15px;font-weight:700;color:${r.balance<0?'var(--red-deficit)':'var(--sage-deep)'}">封筒 ${fmtYenSigned(r.balance).replace('+','')}</span>
+          </div>
+          <div style="display:flex;gap:12px;font-size:13px;color:var(--gray-muted);margin-bottom:8px">
+            <span>予算 <b style="color:var(--ink)">${fmtYen(r.budget)}</b></span>
+            <span>実績 <b style="color:var(--ink)">${fmtYen(r.actual)}</b></span>
+            <span>差額 <b style="color:${r.diff>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(r.diff)}</b></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">予算:</span>
+            <input type="number" id="env-budget-${escapeHtml(r.ym)}" value="${r.budget}" style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--cream)"
+              onchange="updateMonthlyBudget('${escapeJs(r.ym)}','${escapeJs(catName)}',this.value)">
+            <button onclick="saveMonthlyBudgets('${escapeJs(r.ym)}')" style="padding:7px 12px;border-radius:8px;border:none;background:var(--terracotta);color:white;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">保存</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('history-modal-title').textContent = `${catName}の月別履歴`;
+  document.getElementById('history-modal-body').innerHTML = bodyContent;
+  document.getElementById('history-modal-overlay').classList.add('show');
 }
 
 function updateMonthlyBudget(ym, catName, value){
@@ -1925,7 +2420,10 @@ function saveMonthlyBudgets(ym){
   stor('kk_monthly_budgets', stored);
   if (currentUser) saveToFirestore();
   showToast(`${monthLabel(ym)}の予算を確定しました`);
-  renderAnalysis();
+  // 封筒ページにいれば再描画（モーダル内から呼ばれた場合もページ側を更新）
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (activePage === 'envelope') renderEnvelopePage();
+  else if (activePage === 'analysis') renderAnalysis();
 }
 
 function fmtYenShort(n){
@@ -1934,6 +2432,53 @@ function fmtYenShort(n){
   const abs = Math.abs(r);
   if (abs >= 10000) return sign + (abs/10000).toFixed(abs%10000===0?0:1) + '万';
   return sign + abs.toLocaleString();
+}
+
+function openIncomeExpenseHistoryModal(type){
+  const ym = AppState.currentMonth;
+  const months = getPastMonths(ym, 12);
+  const isIncome = type === 'income';
+  const title = isIncome ? '収入の月別合計（直近12ヶ月）' : '支出の月別合計（直近12ヶ月）';
+
+  const rows = months.map(m => {
+    const s = getMonthSummary(m);
+    return { ym: m, amount: isIncome ? s.income : s.expense };
+  });
+
+  const total = rows.reduce((a,r)=>a+r.amount, 0);
+  const avg = Math.round(total / rows.filter(r=>r.amount>0).length || 1);
+  const maxAmt = Math.max(1, ...rows.map(r=>r.amount));
+
+  const bodyContent = `
+    <div style="display:flex;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px dashed var(--line)">
+      <div>
+        <div style="font-size:13px;color:var(--gray-muted)">12ヶ月合計</div>
+        <div style="font-size:18px;font-weight:700;font-family:'Shippori Mincho',serif">${fmtYen(total)}</div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--gray-muted)">月平均</div>
+        <div style="font-size:18px;font-weight:700;font-family:'Shippori Mincho',serif">${fmtYen(avg)}</div>
+      </div>
+    </div>
+    ${rows.map(r => {
+      const barW = Math.round((r.amount / maxAmt) * 100);
+      const isCurrent = r.ym === ym;
+      return `
+        <div style="padding:8px 0;border-bottom:1px solid var(--cream-deep)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:14px;font-weight:${isCurrent?'700':'500'};color:${isCurrent?'var(--terracotta)':'var(--ink)'}">${monthLabel(r.ym)}${isCurrent?' ◀':''}</span>
+            <span style="font-size:15px;font-weight:700">${r.amount > 0 ? fmtYen(r.amount) : '—'}</span>
+          </div>
+          <div style="height:6px;background:var(--cream-deep);border-radius:100px;overflow:hidden">
+            <div style="height:100%;width:${barW}%;background:${isIncome?'var(--sage)':'var(--terracotta)'};border-radius:100px"></div>
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+
+  document.getElementById('history-modal-title').textContent = title;
+  document.getElementById('history-modal-body').innerHTML = bodyContent;
+  document.getElementById('history-modal-overlay').classList.add('show');
 }
 
 function openAnalysisCategoryDrum(){
@@ -1975,7 +2520,7 @@ function injectAnalysisStyles(){
     .legend-name { flex: 1; color: var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .legend-bar-track { flex: 1.4; height: 6px; background: var(--cream-deep); border-radius: 100px; overflow: hidden; }
     .legend-bar-fill { height: 100%; border-radius: 100px; }
-    .legend-val { font-weight: 700; width: 68px; text-align: right; flex-shrink:0; font-size:11.5px; }
+    .legend-val { font-weight: 700; width: 68px; text-align: right; flex-shrink:0; font-size:15.5px; }
     .card-table { background: var(--white); border-radius: 16px; overflow: hidden; margin-bottom: 8px; box-shadow: 0 2px 0 var(--line); }
     .card-table-head { display: grid; grid-template-columns: 1.3fr 1fr 1fr 0.9fr; padding: 12px 16px; font-size: 10px; color: var(--gray-muted); border-bottom: 1px solid var(--cream-deep); background: var(--cream); }
     .card-table-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 0.9fr; padding: 13px 16px; font-size: 11.5px; align-items: center; border-bottom: 1px solid var(--cream-deep); }
@@ -2105,18 +2650,18 @@ function renderCardsUsageTab(){
 
   let html = `
     <div class="history-summary-bar">
-      <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(ym)}のカード利用合計</div>
+      <div style="font-size:16px;color:var(--gray-muted)">${monthLabel(ym)}のカード利用合計</div>
       <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700">${fmtYen(total)}</div>
     </div>
     <div class="card category-list">
       ${rows.map(c => `
-        <div class="cat-item">
+        <div class="cat-item" style="cursor:pointer" onclick="openCardHistoryModal('${escapeJs(c.name)}')">
           <div class="cat-item-top">
             <span class="cat-name" style="display:flex;align-items:center;gap:8px">
               <span style="width:24px;height:16px;border-radius:4px;background:${c.color||'var(--terracotta)'};flex-shrink:0"></span>
               ${escapeHtml(c.name)}
             </span>
-            <span class="cat-amount">${fmtYen(c.usage)} <span class="budget">/ ${c.txCount}件</span></span>
+            <span class="cat-amount">${fmtYen(c.usage)} <span class="budget">/ ${c.txCount}件</span> <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
           </div>
           <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${Math.round(c.usage/maxUsage*100)}%;background:${c.color||'var(--terracotta)'}"></div></div>
         </div>
@@ -2139,7 +2684,7 @@ function renderCardsBillingTab(){
   }
 
   let html = `
-    <div style="background:var(--cream-deep);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink-soft);line-height:1.6">
+    <div style="background:var(--cream-deep);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:16px;color:var(--ink-soft);line-height:1.6">
       ここでは<strong>${monthLabel(billingTargetYm)}に使った分</strong>の請求額を入力します。カードは利用月と請求月がずれるため、先月分の利用額に対して実際の請求書の金額を入力して差を確認します。
     </div>
     <div class="section-title" style="margin-top:0"><span class="label">${monthLabel(billingTargetYm)}利用分の請求状況</span></div>`;
@@ -2157,26 +2702,26 @@ function renderCardsBillingTab(){
           <div style="display:flex;align-items:center;gap:10px">
             <div style="width:34px;height:22px;border-radius:5px;background:${card.color||'var(--terracotta)'}"></div>
             <div>
-              <div style="font-size:14.5px;font-weight:700">${escapeHtml(card.name)}</div>
-              <div style="font-size:11px;color:var(--gray-muted)">${monthLabel(billingTargetYm)}の利用 ${txCount}件</div>
+              <div style="font-size:16.5px;font-weight:700;cursor:pointer;color:var(--terracotta);text-decoration:underline dotted" onclick="openCardHistoryModal('${escapeJs(card.name)}','${billingTargetYm}')">${escapeHtml(card.name)} ›</div>
+              <div style="font-size:16px;color:var(--gray-muted)">${monthLabel(billingTargetYm)}の利用 ${txCount}件</div>
             </div>
           </div>
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:700">${fmtYen(usage)}</div>
-            <div style="font-size:10.5px;color:var(--gray-muted)">利用累計（都度入力）</div>
+            <div style="font-size:16.5px;color:var(--gray-muted)">利用累計（都度入力）</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:14px">
           <div style="flex:1">
-            <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">請求額（一括入力）</label>
+            <label style="font-size:16px;color:var(--gray-muted);display:block;margin-bottom:6px">請求額（一括入力）</label>
             <input type="number" inputmode="numeric" id="card-bill-${cssEscape(card.name)}" value="${billed!==null?billed:''}" placeholder="未入力"
-              style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--cream)">
+              style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:var(--cream)">
           </div>
-          <button class="submit-btn" style="width:auto;padding:11px 16px;margin-top:18px;font-size:13px"
+          <button class="submit-btn" style="width:auto;padding:11px 16px;margin-top:18px;font-size:16px"
             onclick="saveCardBilling('${escapeJs(card.name)}', '${billingTargetYm}')">保存</button>
         </div>
         ${diff !== null ? `
-          <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:${ok?'var(--sage-soft)':'rgba(181,72,58,0.1)'};font-size:12.5px;font-weight:700;color:${ok?'var(--sage-deep)':'var(--red-deficit)'};text-align:center">
+          <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:${ok?'var(--sage-soft)':'rgba(181,72,58,0.1)'};font-size:16.5px;font-weight:700;color:${ok?'var(--sage-deep)':'var(--red-deficit)'};text-align:center">
             ${ok ? '記帳と請求額が一致しています ✓' : `差額 ${fmtYenSigned(diff)} （${diff>0?'記帳より請求が多い＝記帳漏れの可能性':'記帳より請求が少ない＝記帳の重複・誤入力の可能性'}）`}
           </div>` : ''}
       </div>`;
@@ -2241,8 +2786,8 @@ function renderSettingsTabContent(){
 }
 
 function renderCategoriesSettings(){
-  const groups = ['変動費','固定費','貯蓄返済','投資保険'];
-  let html = `<div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は分析ページの「封筒管理 → 予算を編集」から変更できます。</div>`;
+  const groups = ['変動費','固定費','貯蓄','返済','投資保険'];
+  let html = `<div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。</div>`;
   groups.forEach(g => {
     const cats = AppState.categories.filter(c => c.group === g);
     html += `<div class="settings-group-label">${g}</div><div class="card settings-list">`;
@@ -2254,7 +2799,7 @@ function renderCategoriesSettings(){
             <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" onchange="updateCategoryField(${realIdx},'name',this.value)" placeholder="項目名">
           </div>
           <div class="settings-row-bottom">
-            <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">予算</span>
+            <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">予算</span>
             <input type="number" class="settings-input-amt" value="${c.budget}" onchange="updateCategoryField(${realIdx},'budget',this.value)">
             <button class="settings-del-btn" onclick="deleteCategory(${realIdx})">×</button>
           </div>
@@ -2291,27 +2836,36 @@ function renderIncomeSettings(){
   const ym = AppState.currentMonth;
   const actual = getIncomeActualForMonth(ym);
 
-  // ① 実際収入（先に表示）
-  let html = `<div class="settings-group-label">${monthLabel(ym)}の実際収入</div><div class="card settings-list">`;
+  // ① 実際収入（保存ボタン付き）
+  let html = `<div class="settings-group-label">${monthLabel(ym)}の実際収入</div>`;
   AppState.incomeSources.forEach((s, idx) => {
     const entry = actual[s.name] || {};
     const amount = typeof entry === 'object' ? (entry.amount || 0) : entry;
     const day = typeof entry === 'object' ? (entry.day || null) : null;
+    const history = getIncomeHistoryForMonth(ym, s.name);
     html += `
-      <div class="settings-row">
-        <div class="settings-row-top">
-          <span style="font-size:13.5px;font-weight:700;color:var(--ink)">${escapeHtml(s.name)}</span>
-        </div>
-        <div class="settings-row-bottom">
+      <div class="card" style="padding:16px;margin-bottom:10px">
+        <div style="font-size:15.5px;font-weight:700;margin-bottom:12px">${escapeHtml(s.name)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${history.length?'12px':'0'}">
           <button type="button" class="drum-select-btn small" style="flex:none;width:auto;min-width:60px" onclick="openIncomeDayDrum('${escapeJs(ym)}','${escapeJs(s.name)}')">${day ? day+'日' : '日付'}</button>
-          <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">実績</span>
-          <input type="number" class="settings-input-amt" value="${amount}" onchange="updateIncomeActualAmount('${escapeJs(ym)}','${escapeJs(s.name)}',this.value)">
+          <input type="number" class="settings-input-amt" id="income-amt-${idx}" value="${amount||''}" placeholder="金額" style="flex:1;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:15px">
+          <button class="savings-first-btn" style="flex:none;padding:10px 16px;border-radius:10px;border:none;background:var(--terracotta);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer" onclick="saveIncomeEntry('${escapeJs(ym)}','${escapeJs(s.name)}',${idx})">保存</button>
         </div>
+        ${history.length ? `
+          <div style="border-top:1px dashed var(--line);padding-top:10px">
+            <div style="font-size:13px;color:var(--gray-muted);margin-bottom:6px">保存履歴</div>
+            ${history.slice().reverse().map(h => {
+              const d = new Date(h.savedAt);
+              return `<div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-bottom:1px solid var(--cream-deep)">
+                <span style="color:var(--gray-muted)">${h.day ? h.day+'日' : (d.getMonth()+1)+'/'+ d.getDate()}</span>
+                <span style="font-weight:700">${fmtYen(h.amount)}</span>
+              </div>`;
+            }).join('')}
+          </div>` : ''}
       </div>`;
   });
-  html += `</div>`;
 
-  // ② 収入項目設定（後に表示）
+  // ② 収入項目設定
   html += `<div class="settings-group-label" style="margin-top:20px">収入項目の設定</div><div class="card settings-list">`;
   AppState.incomeSources.forEach((s, idx) => {
     html += `
@@ -2320,7 +2874,7 @@ function renderIncomeSettings(){
           <input type="text" class="settings-input-name" value="${escapeHtml(s.name)}" onchange="updateIncomeField(${idx},'name',this.value)" placeholder="収入項目名">
         </div>
         <div class="settings-row-bottom">
-          <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">予算</span>
+          <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">予算</span>
           <input type="number" class="settings-input-amt" value="${s.budget}" onchange="updateIncomeField(${idx},'budget',this.value)">
           <button class="settings-del-btn" onclick="deleteIncomeSource(${idx})">×</button>
         </div>
@@ -2329,6 +2883,40 @@ function renderIncomeSettings(){
   html += `<button class="settings-add-btn" onclick="addIncomeSource()">＋ 収入項目を追加</button></div>`;
 
   return html;
+}
+
+function getIncomeHistoryForMonth(ym, name){
+  const stored = stor('kk_income_history') || {};
+  return (stored[ym] && stored[ym][name]) ? stored[ym][name] : [];
+}
+
+function saveIncomeEntry(ym, name, inputIdx){
+  const input = document.getElementById(`income-amt-${inputIdx}`);
+  const amount = parseFloat(input ? input.value : 0);
+  if (isNaN(amount) || amount <= 0) { showToast('正しい金額を入力してください'); return; }
+
+  // 日付（ドラムで選択済みのday）を取得
+  const actual = getIncomeActualForMonth(ym);
+  const entry = actual[name] || {};
+  const day = typeof entry === 'object' ? (entry.day || null) : null;
+
+  // kk_income_actualを更新（既存の互換性維持）
+  const storedActual = stor('kk_income_actual') || {};
+  if (!storedActual[ym]) storedActual[ym] = {};
+  const prev = typeof (storedActual[ym][name]||{}) === 'object' ? (storedActual[ym][name]||{}) : {};
+  storedActual[ym][name] = {...prev, amount, day};
+  stor('kk_income_actual', storedActual);
+
+  // kk_income_historyに履歴として追記
+  const hist = stor('kk_income_history') || {};
+  if (!hist[ym]) hist[ym] = {};
+  if (!hist[ym][name]) hist[ym][name] = [];
+  hist[ym][name].push({ amount, day, savedAt: Date.now() });
+  stor('kk_income_history', hist);
+
+  if (currentUser) saveToFirestore();
+  showToast(`${name} ${fmtYen(amount)} を保存しました`);
+  renderSettingsTabContent();
 }
 
 function openIncomeDayDrum(ym, name){
@@ -2379,14 +2967,14 @@ function renderMethodsSettings(){
       <div class="settings-row settings-row-method">
         <div class="settings-row-method-top">
           <input type="text" class="settings-input-name" value="${escapeHtml(m.name)}" onchange="updateMethodField(${idx},'name',this.value)">
-          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-muted);flex-shrink:0">
+          <label style="display:flex;align-items:center;gap:5px;font-size:16px;color:var(--gray-muted);flex-shrink:0">
             <input type="checkbox" ${m.isCard?'checked':''} onchange="toggleMethodIsCard(${idx},this.checked)">カード
           </label>
           <button class="settings-del-btn" onclick="deleteMethod(${idx})">×</button>
         </div>
         ${m.isCard ? `
           <div class="settings-row-method-sub">
-            <span style="font-size:11px;color:var(--gray-muted);flex-shrink:0">引き落とし日</span>
+            <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">引き落とし日</span>
             <button type="button" class="drum-select-btn small" onclick="openBillingDayDrum(${idx})">${m.billingDay ? m.billingDay+'日' : '未設定'}</button>
           </div>
         ` : ''}
@@ -2446,7 +3034,7 @@ function renderAccountsSettings(){
         <!-- 折りたたみヘッダー -->
         <div class="account-accordion-header" onclick="toggleAccount(${idx})">
           <div>
-            <div style="font-size:14px;font-weight:700">${escapeHtml(acc.name)}</div>
+            <div style="font-size:16px;font-weight:700">${escapeHtml(acc.name)}</div>
             <div style="font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;color:var(--terracotta)">${fmtYen(acc.balance||0)}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
@@ -2462,15 +3050,15 @@ function renderAccountsSettings(){
 
           <div class="account-balance-row">
             <div style="flex:1">
-              <label style="font-size:11px;color:var(--gray-muted);display:block;margin-bottom:6px">残高を入力</label>
+              <label style="font-size:16px;color:var(--gray-muted);display:block;margin-bottom:6px">残高を入力</label>
               <input type="number" inputmode="numeric" id="acc-balance-input-${idx}" value="${acc.balance||0}" class="account-balance-input">
             </div>
-            <button class="submit-btn" style="width:auto;padding:11px 18px;margin-top:18px;font-size:13px" onclick="saveAccountBalance(${idx})">保存</button>
+            <button class="submit-btn" style="width:auto;padding:11px 18px;margin-top:18px;font-size:16px" onclick="saveAccountBalance(${idx})">保存</button>
           </div>
 
           ${history.length > 1 ? `
             <div class="account-history-chart">
-              <div style="font-size:10.5px;color:var(--gray-muted);margin-bottom:8px">残高推移（直近${history.length}件）</div>
+              <div style="font-size:16.5px;color:var(--gray-muted);margin-bottom:8px">残高推移（直近${history.length}件）</div>
               <div class="bar-chart bar-chart-labeled bar-chart-year">
                 ${history.map(h => {
                   const hgt = Math.max(4, Math.round((h.value / maxBal) * 70));
@@ -2483,7 +3071,7 @@ function renderAccountsSettings(){
                 }).join('')}
               </div>
             </div>
-          ` : `<div style="font-size:11px;color:var(--gray-muted);padding:10px 0 4px">保存を重ねると残高推移グラフが表示されます</div>`}
+          ` : `<div style="font-size:16px;color:var(--gray-muted);padding:10px 0 4px">保存を重ねると残高推移グラフが表示されます</div>`}
         </div>
       </div>`;
   });
@@ -2491,7 +3079,7 @@ function renderAccountsSettings(){
   html += `<button class="settings-add-btn account-add-btn" onclick="addAccount()">＋ 口座を追加</button>`;
   html += `
     <div style="margin-top:16px;padding:16px;background:var(--white);border-radius:14px;box-shadow:0 2px 0 var(--line)">
-      <div style="font-size:11.5px;color:var(--gray-muted);margin-bottom:6px">口座残高合計</div>
+      <div style="font-size:15.5px;color:var(--gray-muted);margin-bottom:6px">口座残高合計</div>
       <div style="font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700">${fmtYen(totalBalance)}</div>
     </div>`;
   return html;
@@ -2857,6 +3445,9 @@ async function saveToFirestore(){
         kk_card_billings: AppState.cardBillings,
         kk_income_actual: stor('kk_income_actual') || {},
         kk_monthly_budgets: stor('kk_monthly_budgets') || {},
+        kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
+        kk_savings_first: stor('kk_savings_first') || {},
+        kk_income_history: stor('kk_income_history') || {},
         updatedAt: Date.now()
       });
   } catch(e) { console.warn('Firestore save error:', e); }
@@ -2888,6 +3479,9 @@ async function loadFromFirestore(){
       AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
       if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
       if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
+      if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
+      if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
+      if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
 
       stor('kk_categories', AppState.categories);
       stor('kk_income_sources', AppState.incomeSources);
