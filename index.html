@@ -3458,6 +3458,61 @@ async function saveToFirestore(){
   } catch(e) { console.warn('Firestore save error:', e); }
 }
 
+/* ============================================================
+   新規ユーザー向け空のデフォルトデータ
+   ============================================================ */
+const NEW_USER_DEFAULT_CATEGORIES = [
+  {name:'食費', group:'変動費', budget:0},
+  {name:'日用品', group:'変動費', budget:0},
+  {name:'医療', group:'変動費', budget:0},
+  {name:'衣服・美容', group:'変動費', budget:0},
+  {name:'娯楽・交際', group:'変動費', budget:0},
+  {name:'交通', group:'変動費', budget:0},
+  {name:'教育', group:'変動費', budget:0},
+  {name:'居住費', group:'固定費', budget:0},
+  {name:'水道', group:'固定費', budget:0},
+  {name:'ガス', group:'固定費', budget:0},
+  {name:'電気', group:'固定費', budget:0},
+  {name:'通信費', group:'固定費', budget:0},
+  {name:'貯金', group:'貯蓄', budget:0},
+  {name:'返済', group:'返済', budget:0},
+  {name:'保険', group:'投資保険', budget:0},
+];
+
+const NEW_USER_DEFAULT_INCOME_SOURCES = [
+  {name:'給与', budget:0},
+];
+
+const NEW_USER_DEFAULT_PAYMENT_METHODS = [
+  {name:'現金', isCard:false, color:'#B8923F'},
+  {name:'クレジットカード', isCard:true, color:'#C1683F'},
+];
+
+const NEW_USER_DEFAULT_ACCOUNTS = [];
+
+function initNewUser(){
+  // 新規ユーザーはデフォルトデータ（空・最小限）で開始
+  AppState.categories = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_CATEGORIES));
+  AppState.incomeSources = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_INCOME_SOURCES));
+  AppState.paymentMethods = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_PAYMENT_METHODS));
+  AppState.accounts = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_ACCOUNTS));
+  AppState.transactions = [];
+  AppState.cardBillings = {};
+  // ストレージもクリア
+  stor('kk_categories', AppState.categories);
+  stor('kk_income_sources', AppState.incomeSources);
+  stor('kk_payment_methods', AppState.paymentMethods);
+  stor('kk_accounts', AppState.accounts);
+  stor('kk_transactions', AppState.transactions);
+  stor('kk_card_billings', AppState.cardBillings);
+  // 履歴系もクリア
+  stor('kk_income_actual', {});
+  stor('kk_income_history', {});
+  stor('kk_monthly_budgets', {});
+  stor('kk_savings_first', {});
+  stor('kk_envelope_reset_ym', null);
+}
+
 async function loadFromFirestore(){
   if (!currentUser || !db_fs) return;
   try {
@@ -3466,7 +3521,11 @@ async function loadFromFirestore(){
       .collection('kakeibo_app').doc('data').get();
 
     if (!snap.exists) {
+      // 新規ユーザー：空のデフォルトデータで初期化してFirestoreに保存
+      initNewUser();
       await saveToFirestore();
+      showToast('ようこそ！設定から項目や支払い方法を追加してください');
+      refreshActivePage();
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
       return;
     }
