@@ -1019,6 +1019,8 @@ function loadLocalState(){
   }
 }
 
+let _saveToFirestoreTimer = null;
+
 function saveLocalState(){
   stor('kk_categories', AppState.categories);
   stor('kk_income_sources', AppState.incomeSources);
@@ -1026,7 +1028,11 @@ function saveLocalState(){
   stor('kk_accounts', AppState.accounts);
   stor('kk_transactions', AppState.transactions);
   stor('kk_card_billings', AppState.cardBillings);
-  if (currentUser) saveToFirestore();
+  if (currentUser) {
+    // 連続した変更を1.5秒後にまとめてFirestoreへ送信
+    clearTimeout(_saveToFirestoreTimer);
+    _saveToFirestoreTimer = setTimeout(() => saveToFirestore(), 1500);
+  }
 }
 
 let _txIdCounter = 1;
@@ -1174,6 +1180,13 @@ function goToIncomeSettings(){
 }
 
 function goToPage(page){
+  // 設定ページから離脱する場合、保留中のFirestore保存を即時実行
+  const currentPage = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (currentPage === 'settings' && page !== 'settings') {
+    clearTimeout(_saveToFirestoreTimer);
+    if (currentUser) saveToFirestore();
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -2910,14 +2923,14 @@ function renderCategoriesSettings(){
       html += `
         <div class="settings-row">
           <div class="settings-row-top">
-            <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" onchange="updateCategoryField(${realIdx},'name',this.value)" placeholder="項目名">
+            <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" oninput="updateCategoryField\(${realIdx},'name',this.value)" placeholder="項目名">
           </div>
           <div style="margin-bottom:6px">
-            <input type="text" class="settings-input-name" style="font-size:13.5px;color:var(--ink-soft);font-weight:400" value="${escapeHtml(c.detail||'')}" onchange="updateCategoryField(${realIdx},'detail',this.value)" placeholder="詳細（例：家賃、テナント代など）">
+            <input type="text" class="settings-input-name" style="font-size:13.5px;color:var(--ink-soft);font-weight:400" value="${escapeHtml(c.detail||'')}" oninput="updateCategoryField\(${realIdx},'detail',this.value)" placeholder="詳細（例：家賃、テナント代など）">
           </div>
           <div class="settings-row-bottom">
             <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">予算</span>
-            <input type="number" class="settings-input-amt" value="${c.budget}" onchange="updateCategoryField(${realIdx},'budget',this.value)">
+            <input type="number" class="settings-input-amt" value="${c.budget}" oninput="updateCategoryField\(${realIdx},'budget',this.value)">
             <button class="settings-del-btn" onclick="deleteCategory(${realIdx})">×</button>
           </div>
         </div>`;
@@ -2990,11 +3003,11 @@ function renderIncomeSettings(){
     html += `
       <div class="settings-row">
         <div class="settings-row-top">
-          <input type="text" class="settings-input-name" value="${escapeHtml(s.name)}" onchange="updateIncomeField(${idx},'name',this.value)" placeholder="収入項目名">
+          <input type="text" class="settings-input-name" value="${escapeHtml(s.name)}" oninput="updateIncomeField\(${idx},'name',this.value)" placeholder="収入項目名">
         </div>
         <div class="settings-row-bottom">
           <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">予算</span>
-          <input type="number" class="settings-input-amt" value="${s.budget}" onchange="updateIncomeField(${idx},'budget',this.value)">
+          <input type="number" class="settings-input-amt" value="${s.budget}" oninput="updateIncomeField\(${idx},'budget',this.value)">
           <button class="settings-del-btn" onclick="deleteIncomeSource(${idx})">×</button>
         </div>
       </div>`;
@@ -3119,7 +3132,7 @@ function renderMethodsSettings(){
     html += `
       <div class="settings-row settings-row-method">
         <div class="settings-row-method-top">
-          <input type="text" class="settings-input-name" value="${escapeHtml(m.name)}" onchange="updateMethodField(${idx},'name',this.value)">
+          <input type="text" class="settings-input-name" value="${escapeHtml(m.name)}" oninput="updateMethodField\(${idx},'name',this.value)">
           <label style="display:flex;align-items:center;gap:5px;font-size:16px;color:var(--gray-muted);flex-shrink:0">
             <input type="checkbox" ${m.isCard?'checked':''} onchange="toggleMethodIsCard(${idx},this.checked)">カード
           </label>
@@ -3218,8 +3231,8 @@ function renderAccountsSettings(){
 
         <!-- 展開コンテンツ -->
         <div class="account-accordion-body" style="display:${isOpen?'block':'none'}">
-          <input type="text" class="settings-input-name" style="border:1px solid var(--line);background:var(--cream);border-radius:8px;padding:7px 10px;margin-bottom:8px;width:100%" value="${escapeHtml(acc.name)}" onchange="updateAccountField(${idx},'name',this.value)" placeholder="口座名">
-          <input type="text" class="account-memo-input" value="${escapeHtml(acc.memo||'')}" onchange="updateAccountField(${idx},'memo',this.value)" placeholder="メモ（何のための口座か）">
+          <input type="text" class="settings-input-name" style="border:1px solid var(--line);background:var(--cream);border-radius:8px;padding:7px 10px;margin-bottom:8px;width:100%" value="${escapeHtml(acc.name)}" oninput="updateAccountField\(${idx},'name',this.value)" placeholder="口座名">
+          <input type="text" class="account-memo-input" value="${escapeHtml(acc.memo||'')}" oninput="updateAccountField\(${idx},'memo',this.value)" placeholder="メモ（何のための口座か）">
 
           <div class="account-balance-row">
             <div style="flex:1">
@@ -3457,15 +3470,15 @@ function injectSettingsStyles(){
 /* ============================================================
    初期化
    ============================================================ */
-function manualReload(){
+async function manualReload(){
   const btn = document.getElementById('reload-btn');
-  if (btn) { btn.classList.add('spin'); setTimeout(()=>btn.classList.remove('spin'), 600); }
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
-    setTimeout(() => location.reload(), 400);
-  } else {
-    location.reload(true);
+  if (btn) { btn.classList.add('spin'); }
+  // 保留中のタイマーをキャンセルして即時Firestore保存
+  clearTimeout(_saveToFirestoreTimer);
+  if (currentUser) {
+    try { await saveToFirestore(); } catch(e) { console.warn('Reload save error:', e); }
   }
+  setTimeout(() => location.reload(), 300);
 }
 
 function registerSW(){
