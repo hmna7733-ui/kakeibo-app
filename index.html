@@ -1248,7 +1248,7 @@ function renderHome(){
       return `
         <div class="cat-item" style="cursor:pointer" onclick="openCategoryHistoryModal('${escapeJs(c.name)}')">
           <div class="cat-item-top">
-            <span class="cat-name">${escapeHtml(c.name)}</span>
+            <span class="cat-name">${catNameHtml(c.name)}</span>
             <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
           </div>
           <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
@@ -1288,7 +1288,7 @@ function renderHome(){
     recentEl.innerHTML = recent.map(t => `
       <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
         <div class="cat-item-top">
-          <span class="cat-name">${escapeHtml(t.category)}</span>
+          <span class="cat-name">${catNameHtml(t.category)}</span>
           <span class="cat-amount">${fmtYen(t.amount)}</span>
         </div>
         <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
@@ -1332,7 +1332,7 @@ function renderSavingsFirst(ym){
       ${txs.map(t => `
         <div class="cat-item" style="cursor:pointer;padding:10px 0" onclick="closeHistoryModal();openTxModal('${t.id}')">
           <div class="cat-item-top">
-            <span class="cat-name">${escapeHtml(t.category)}</span>
+            <span class="cat-name">${catNameHtml(t.category)}</span>
             <span class="cat-amount">${fmtYen(t.amount)}</span>
           </div>
           <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}</div>
@@ -1457,7 +1457,7 @@ function openHistoryModal(title, txs){
       ${sorted.map(t => `
         <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
           <div class="cat-item-top">
-            <span class="cat-name">${escapeHtml(t.category)}</span>
+            <span class="cat-name">${catNameHtml(t.category)}</span>
             <span class="cat-amount">${fmtYen(t.amount)}</span>
           </div>
           <div style="font-size:13px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
@@ -1469,6 +1469,14 @@ function openHistoryModal(title, txs){
 
 function closeHistoryModal(){
   document.getElementById('history-modal-overlay').classList.remove('show');
+}
+
+// カテゴリ名 + 詳細をセットで返すHTML（詳細があれば名前の横に小さく表示）
+function catNameHtml(catName){
+  const cat = AppState.categories.find(c => c.name === catName);
+  const detail = cat && cat.detail ? cat.detail : '';
+  if (!detail) return escapeHtml(catName);
+  return `${escapeHtml(catName)}<span style="font-size:12px;color:var(--gray-muted);font-weight:400;margin-left:6px">${escapeHtml(detail)}</span>`;
 }
 
 function escapeHtml(s){
@@ -1779,7 +1787,7 @@ function historyRowHtml(t){
   return `
     <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
       <div class="cat-item-top">
-        <span class="cat-name">${escapeHtml(t.category)}</span>
+        <span class="cat-name">${catNameHtml(t.category)}</span>
         <span class="cat-amount">${fmtYen(t.amount)}</span>
       </div>
       <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
@@ -2236,7 +2244,7 @@ function renderEnvelopePage(){
         return `
           <div class="cat-item" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
             <div class="cat-item-top">
-              <span class="cat-name">${escapeHtml(e.name)}</span>
+              <span class="cat-name">${catNameHtml(e.name)}</span>
               <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
             </div>
             <div style="font-size:14px;color:var(--gray-muted);margin-bottom:5px">予算 ${fmtYen(e.budget)} ／ 実績 ${fmtYen(e.actual)}</div>
@@ -2252,7 +2260,7 @@ function renderEnvelopePage(){
         ${envelopes.map(e => `
           <div class="settings-row">
             <div class="settings-row-top" style="margin-bottom:0">
-              <span style="font-size:15px;font-weight:700;flex:1">${escapeHtml(e.name)}</span>
+              <span style="font-size:15px;font-weight:700;flex:1">${catNameHtml(e.name)}</span>
               <input type="number" class="settings-input-amt" style="width:110px;flex:none" value="${e.budget}"
                 onchange="updateMonthlyBudget('${escapeJs(ym)}','${escapeJs(e.name)}',this.value)">
             </div>
@@ -2813,6 +2821,9 @@ function renderCategoriesSettings(){
           <div class="settings-row-top">
             <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" onchange="updateCategoryField(${realIdx},'name',this.value)" placeholder="項目名">
           </div>
+          <div style="margin-bottom:6px">
+            <input type="text" class="settings-input-name" style="font-size:13.5px;color:var(--ink-soft);font-weight:400" value="${escapeHtml(c.detail||'')}" onchange="updateCategoryField(${realIdx},'detail',this.value)" placeholder="詳細（例：家賃、テナント代など）">
+          </div>
           <div class="settings-row-bottom">
             <span style="font-size:16px;color:var(--gray-muted);flex-shrink:0">予算</span>
             <input type="number" class="settings-input-amt" value="${c.budget}" onchange="updateCategoryField(${realIdx},'budget',this.value)">
@@ -2842,7 +2853,7 @@ function deleteCategory(idx){
 }
 
 function addCategory(group){
-  AppState.categories.push({name:'新しい項目', group, budget:0});
+  AppState.categories.push({name:'新しい項目', group, budget:0, detail:''});
   saveLocalState();
   renderSettingsTabContent();
 }
