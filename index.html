@@ -1106,6 +1106,9 @@ function loadLocalState(){
   // この機能が無かった頃の記帳は仕組み上すべて支出系（収入は別管理だった）なので、
   // isIncomeフラグ→項目のグループの順だけで安全に判定できる。
   backfillTransactionGenres();
+
+  // マイグレーション：旧「締め日」設定を、開始/終了の明示的な請求範囲設定に変換
+  migrateCardClosingDayToRange();
 }
 
 // kk_income_history（設定›収入の保存履歴）の各月・各項目の最新値を、
@@ -1373,27 +1376,56 @@ function setIncomeActualForMonth(ym, data){
   stor('kk_income_actual', stored);
 }
 
-// カードの締め日（closingDay）に基づく実際の請求対象期間を計算する。
-// 締め日が未設定、または月末締めの場合は従来通り暦月（1日〜末日）のまま。
-// 例：締め日15日・referenceYm=2026-06 → 2026-05-16〜2026-06-15
-function getCardStatementRange(card, referenceYm){
-  const closingDay = card && card.closingDay;
+// 「今月/先月/先々月のX日」から実際の日付を計算する
+function resolveRangeDate(referenceYm, monthsBack, day){
   const [y, m] = referenceYm.split('-').map(Number);
-  const lastDayOfRefMonth = new Date(y, m, 0).getDate();
+  const d = new Date(y, m - 1 - (monthsBack || 0), 1);
+  const ty = d.getFullYear(), tm = d.getMonth() + 1;
+  const daysInTargetMonth = new Date(ty, tm, 0).getDate();
+  const safeDay = day ? Math.min(day, daysInTargetMonth) : daysInTargetMonth; // day未指定/null＝月末
+  return `${ty}-${pad2(tm)}-${pad2(safeDay)}`;
+}
 
-  if (!closingDay || closingDay >= lastDayOfRefMonth) {
-    return { startDate: `${referenceYm}-01`, endDate: `${referenceYm}-${pad2(lastDayOfRefMonth)}` };
+// カードの請求範囲（開始・終了とも「今月/先月/先々月の◯日」で個別指定）に基づいて
+// 実際の集計対象期間を計算する。未設定の場合は暦月（1日〜末日）のまま。
+function getCardStatementRange(card, referenceYm){
+  if (!card) {
+    const [y, m] = referenceYm.split('-').map(Number);
+    return { startDate: `${referenceYm}-01`, endDate: `${referenceYm}-${pad2(new Date(y,m,0).getDate())}` };
   }
+  const startMonthsBack = card.rangeStartMonthsBack != null ? card.rangeStartMonthsBack : 0;
+  const startDay = card.rangeStartDay || 1;
+  const endMonthsBack = card.rangeEndMonthsBack != null ? card.rangeEndMonthsBack : 0;
+  const endDay = card.rangeEndDay || null; // null＝月末
 
-  const endDate = `${referenceYm}-${pad2(closingDay)}`;
+  return {
+    startDate: resolveRangeDate(referenceYm, startMonthsBack, startDay),
+    endDate: resolveRangeDate(referenceYm, endMonthsBack, endDay),
+  };
+}
 
-  const prevDate = new Date(y, m - 2, 1);
-  const prevYm = `${prevDate.getFullYear()}-${pad2(prevDate.getMonth()+1)}`;
-  const daysInPrevMonth = new Date(prevDate.getFullYear(), prevDate.getMonth()+1, 0).getDate();
-  const startDay = Math.min(closingDay + 1, daysInPrevMonth);
-  const startDate = `${prevYm}-${pad2(startDay)}`;
-
-  return { startDate, endDate };
+// 旧「締め日」設定からの一度きりの移行（closingDay → 開始/終了の明示的な範囲設定）
+function migrateCardClosingDayToRange(){
+  let changed = false;
+  AppState.paymentMethods.forEach(m => {
+    if (!m.isCard) return;
+    if (m.rangeStartMonthsBack !== undefined) return; // 既に移行済み
+    if (m.closingDay) {
+      m.rangeStartMonthsBack = 1;
+      m.rangeStartDay = m.closingDay + 1;
+      m.rangeEndMonthsBack = 0;
+      m.rangeEndDay = m.closingDay;
+    } else {
+      m.rangeStartMonthsBack = 0;
+      m.rangeStartDay = 1;
+      m.rangeEndMonthsBack = 0;
+      m.rangeEndDay = null;
+    }
+    delete m.closingDay;
+    changed = true;
+  });
+  if (changed) saveLocalState();
+  return changed;
 }
 
 function getCardUsageForMonth(ym, cardName){
@@ -2480,10 +2512,34 @@ function closeDrum(apply){
     if (_drumTargetField === 'tx-category') { _selectedTxCategory = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'tx-method') { _selectedTxMethod = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'analysis-category') { _analysisSelectedCategory = val; renderAnalysis(); }
-    if (_drumTargetField && _drumTargetField.startsWith('closing-day-')) {
-      const idx = parseInt(_drumTargetField.replace('closing-day-',''), 10);
+    if (_drumTargetField && _drumTargetField.startsWith('range-month-start-')) {
+      const idx = parseInt(_drumTargetField.replace('range-month-start-',''), 10);
       if (AppState.paymentMethods[idx]) {
-        AppState.paymentMethods[idx].closingDay = (val === '月末') ? null : parseInt(val, 10);
+        AppState.paymentMethods[idx].rangeStartMonthsBack = parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
+    if (_drumTargetField && _drumTargetField.startsWith('range-month-end-')) {
+      const idx = parseInt(_drumTargetField.replace('range-month-end-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].rangeEndMonthsBack = parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
+    if (_drumTargetField && _drumTargetField.startsWith('range-day-start-')) {
+      const idx = parseInt(_drumTargetField.replace('range-day-start-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].rangeStartDay = parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
+    if (_drumTargetField && _drumTargetField.startsWith('range-day-end-')) {
+      const idx = parseInt(_drumTargetField.replace('range-day-end-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].rangeEndDay = (val === '月末') ? null : parseInt(val, 10);
         saveLocalState();
         renderSettingsTabContent();
       }
@@ -3697,9 +3753,12 @@ function addIncomeSource(){
 
 function renderMethodsSettings(){
   const billingOffsetLabels = ['翌月（1ヶ月後）','翌々月（2ヶ月後）','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'];
-  let html = `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">「締め日」を設定すると、利用合計はその締め日を基準にした期間（例：締め日15日なら前月16日〜当月15日）で計算されます。カード会社の請求額とのズレが気になる場合はここを設定してください。未設定の場合は暦月（1日〜末日）で計算されます。</div><div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
+  const monthsBackLabels = ['今月','先月','先々月'];
+  let html = `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">「請求範囲」の開始・終了を設定すると、利用合計はその期間（例：先月16日〜今月15日、先々月21日〜先月20日など）で計算されます。カード会社の請求額とのズレが気になる場合はここを設定してください。未設定の場合は暦月（1日〜末日）で計算されます。</div><div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
   AppState.paymentMethods.forEach((m, idx) => {
     const offset = m.billingOffset || 1;
+    const startMonthsBack = m.rangeStartMonthsBack != null ? m.rangeStartMonthsBack : 0;
+    const endMonthsBack = m.rangeEndMonthsBack != null ? m.rangeEndMonthsBack : 0;
     html += `
       <div class="settings-row settings-row-method">
         <div class="settings-row-method-top">
@@ -3711,8 +3770,14 @@ function renderMethodsSettings(){
         </div>
         ${m.isCard ? `
           <div class="settings-row-method-sub">
-            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">締め日</span>
-            <button type="button" class="drum-select-btn small" onclick="openClosingDayDrum(${idx})">${m.closingDay ? m.closingDay+'日' : '月末'}</button>
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:40px">開始</span>
+            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'start')">${monthsBackLabels[startMonthsBack]}</button>
+            <button type="button" class="drum-select-btn small" onclick="openRangeDayDrum(${idx},'start')">${m.rangeStartDay || 1}日</button>
+          </div>
+          <div class="settings-row-method-sub" style="margin-top:6px">
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:40px">終了</span>
+            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'end')">${monthsBackLabels[endMonthsBack]}</button>
+            <button type="button" class="drum-select-btn small" onclick="openRangeDayDrum(${idx},'end')">${m.rangeEndDay ? m.rangeEndDay+'日' : '月末'}</button>
           </div>
           <div class="settings-row-method-sub" style="margin-top:6px">
             <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">引落日</span>
@@ -3739,12 +3804,29 @@ function toggleMethodIsCard(idx, checked){
   saveLocalState();
   renderSettingsTabContent();
 }
-function openClosingDayDrum(idx){
+function openRangeMonthDrum(idx, which){
   const m = AppState.paymentMethods[idx];
   if (!m) return;
-  const values = ['月末', ...Array.from({length:28}, (_,i) => String(i+1))];
-  _drumTargetField = 'closing-day-' + idx;
-  buildDrumDOM('締め日を選択', values, m.closingDay ? String(m.closingDay) : '月末');
+  const values = ['0','1','2'];
+  const labels = ['今月','先月','先々月'];
+  const cur = which === 'start'
+    ? String(m.rangeStartMonthsBack != null ? m.rangeStartMonthsBack : 0)
+    : String(m.rangeEndMonthsBack != null ? m.rangeEndMonthsBack : 0);
+  _drumTargetField = `range-month-${which}-${idx}`;
+  buildDrumDOM(which === 'start' ? '請求範囲の開始月を選択' : '請求範囲の終了月を選択', values, cur, v => labels[parseInt(v,10)]);
+}
+function openRangeDayDrum(idx, which){
+  const m = AppState.paymentMethods[idx];
+  if (!m) return;
+  if (which === 'start') {
+    const values = Array.from({length:31}, (_,i) => String(i+1));
+    _drumTargetField = 'range-day-start-' + idx;
+    buildDrumDOM('開始日を選択', values, String(m.rangeStartDay || 1), v => v + '日');
+  } else {
+    const values = ['月末', ...Array.from({length:31}, (_,i) => String(i+1))];
+    _drumTargetField = 'range-day-end-' + idx;
+    buildDrumDOM('終了日を選択', values, m.rangeEndDay ? String(m.rangeEndDay) : '月末');
+  }
 }
 function openBillingDayDrum(idx){
   const m = AppState.paymentMethods[idx];
@@ -4367,6 +4449,8 @@ async function loadFromFirestore(){
       migrateIncomeHistoryToTransactions();
       // クラウド側のデータにもジャンル未設定の記帳があれば、ここで確定させる
       backfillTransactionGenres();
+      // クラウド側のカードにも旧「締め日」設定が残っていれば変換
+      migrateCardClosingDayToRange();
 
       stor('kk_categories', AppState.categories);
       stor('kk_income_sources', AppState.incomeSources);
