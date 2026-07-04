@@ -165,7 +165,10 @@
   /* ===== ヘッダー ===== */
   .app-header {
     padding: 24px 20px 18px;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--cream);
   }
   .app-header::after {
     content: "";
@@ -596,7 +599,13 @@
   }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal-handle { width: 36px; height: 4px; background: var(--line); border-radius: 100px; margin: 8px auto 16px; }
-  .modal-title { font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-title {
+    font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700;
+    margin: 0 -20px 18px; padding: 6px 20px 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: -10px; z-index: 10;
+    background: var(--cream);
+  }
   .modal-close { font-size: 22px; color: var(--gray-muted); cursor: pointer; background: none; border: none; }
 
   .form-field { margin-bottom: 16px; }
