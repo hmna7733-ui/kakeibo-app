@@ -873,6 +873,13 @@
   </div>
 </div>
 
+<!-- ===== 理想の目標画面 ===== -->
+<div class="page" id="page-goals">
+  <div class="content" id="goals-content">
+    <div class="empty-hint">準備中です</div>
+  </div>
+</div>
+
 <!-- FAB -->
 <button class="fab" id="fab-add" onclick="openTxModal()">＋</button>
 
@@ -1410,9 +1417,9 @@ function goToIncomeSettings(){
 }
 
 function goToPage(page){
-  // 設定ページから離脱する場合、保留中のFirestore保存を即時実行
+  // 設定・理想の目標ページから離脱する場合、保留中のFirestore保存を即時実行
   const currentPage = document.querySelector('.page.active')?.id?.replace('page-','');
-  if (currentPage === 'settings' && page !== 'settings') {
+  if ((currentPage === 'settings' || currentPage === 'goals') && page !== currentPage) {
     clearTimeout(_saveToFirestoreTimer);
     if (currentUser) saveToFirestore();
   }
@@ -1422,10 +1429,10 @@ function goToPage(page){
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === page);
   });
-  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', envelope:'封筒管理', settings:'設定'};
+  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', envelope:'封筒管理', settings:'設定', goals:'理想の目標'};
   document.getElementById('page-title').textContent = titles[page] || '家計手帖';
-  document.getElementById('month-selector-wrap').style.display = (page==='settings') ? 'none' : 'flex';
-  document.getElementById('fab-add').style.display = (page==='settings') ? 'none' : 'flex';
+  document.getElementById('month-selector-wrap').style.display = (page==='settings' || page==='goals') ? 'none' : 'flex';
+  document.getElementById('fab-add').style.display = (page==='settings' || page==='goals') ? 'none' : 'flex';
 
   if (page === 'home') renderHome();
   if (page === 'history') renderHistory();
@@ -1433,6 +1440,7 @@ function goToPage(page){
   if (page === 'cards') renderCards();
   if (page === 'envelope') renderEnvelopePage();
   if (page === 'settings') renderSettings();
+  if (page === 'goals') renderGoalsPage();
 
   scrollToTop();
 }
@@ -2671,6 +2679,15 @@ function renderAnalysis(){
     .sort((a,b) => b.actual - a.actual);
 
   let html = `
+    <button type="button" class="goals-entry-banner" onclick="goToPage('goals')">
+      <span class="goals-entry-icon">🎯</span>
+      <span class="goals-entry-text">
+        <span class="goals-entry-title">理想の目標</span>
+        <span class="goals-entry-sub">理想値とのギャップを見る・目標を設定する</span>
+      </span>
+      <span class="goals-entry-arrow">›</span>
+    </button>
+
     <div class="home-genre-grid" style="margin-top:0">
       ${genreCardsGridHtml(ym, { showDelta: true, trendMode: true })}
     </div>
@@ -2727,6 +2744,177 @@ function renderAnalysis(){
   document.getElementById('analysis-content').innerHTML = html;
   injectAnalysisStyles();
   runAiAnalysis(ym, summary, cardRows);
+}
+
+/* ============================================================
+   理想の目標ページ（独立ページ）
+   各項目に「理想の金額（定量的ゴール）」「目指す姿（定性的ゴール）」を設定し、
+   現在の予算とのギャップ、ジャンルごとの理想合計を確認できるページ。
+   全体サマリーを先頭に置き、各ジャンルの行をタップするとその中の項目の
+   詳細（ギャップ・理想金額入力・目指す姿入力）が展開される方式。
+   ============================================================ */
+const GOAL_GENRE_GROUPS = { '支出': ['変動費','固定費'], '貯蓄': ['貯蓄'], '返済': ['返済'], '投資': ['投資保険'] };
+let _goalsExpandedGenre = null; // 現在展開中のジャンル（1つだけ開く）
+
+function getGoalItemsForGenre(genre){
+  return genre === '収入'
+    ? AppState.incomeSources
+    : AppState.categories.filter(c => (GOAL_GENRE_GROUPS[genre] || []).includes(c.group));
+}
+
+function toggleGoalsGenre(genre){
+  _goalsExpandedGenre = (_goalsExpandedGenre === genre) ? null : genre;
+  renderGoalsPage();
+}
+
+function renderGoalsPage(){
+  const el = document.getElementById('goals-content');
+  const genreTotals = {};
+
+  GENRES.forEach(genre => {
+    const items = getGoalItemsForGenre(genre);
+    const currentTotal = items.reduce((a,i) => a + (i.budget || 0), 0);
+    const idealTotal = items.reduce((a,i) => a + (i.idealAmount != null ? i.idealAmount : (i.budget || 0)), 0);
+    genreTotals[genre] = { current: currentTotal, ideal: idealTotal, items };
+  });
+
+  const curBalance = genreTotals['収入'].current - genreTotals['支出'].current - genreTotals['貯蓄'].current - genreTotals['返済'].current - genreTotals['投資'].current;
+  const idealBalance = genreTotals['収入'].ideal - genreTotals['支出'].ideal - genreTotals['貯蓄'].ideal - genreTotals['返済'].ideal - genreTotals['投資'].ideal;
+
+  let html = `
+    <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:18px;line-height:1.7;padding:12px 14px;background:var(--cream-deep);border-radius:12px">
+      理想の家計プランを描くページです。下の一覧からジャンルをタップすると、項目ごとの「理想の金額」「目指す姿」を書き込めます。書き込むほど、今の予算とのギャップやジャンルごとの理想合計がここに反映されます。
+    </div>
+
+    <div class="section-title">
+      <span class="label">🎯 全体サマリー</span>
+    </div>
+    <div class="card" style="padding:6px 0">
+      ${GENRES.map(g => {
+        const meta = GENRE_CARD_META[g];
+        const t = genreTotals[g];
+        const gap = t.ideal - t.current;
+        const isGood = GENRE_INCREASE_IS_GOOD[g] ? gap >= 0 : gap <= 0;
+        const isOpen = _goalsExpandedGenre === g;
+        return `
+        <div class="goal-genre-block">
+          <button type="button" class="goal-genre-summary-btn" onclick="toggleGoalsGenre('${g}')">
+            <span class="goal-genre-name" style="color:${meta.color}">${meta.icon} ${genreLabel(g)}</span>
+            <span class="goal-genre-amounts">
+              <span class="goal-genre-cur">${fmtYen(t.current)}</span>
+              <span class="goal-genre-sep">→</span>
+              <span class="goal-genre-ideal" style="color:${meta.color}">${fmtYen(t.ideal)}</span>
+            </span>
+            <span class="goal-genre-chevron ${isOpen?'open':''}">▾</span>
+          </button>
+          ${gap !== 0 ? `<div class="goal-genre-gap"><span class="hg-delta ${isGood?'up':'down'}">ギャップ ${fmtYenSigned(gap)}</span></div>` : ''}
+          ${isOpen ? renderGoalGenreDetail(g, t.items) : ''}
+        </div>`;
+      }).join('')}
+      <div class="goal-balance-row">
+        <span class="goal-balance-label">収支</span>
+        <span class="goal-balance-amounts">
+          <span class="goal-genre-cur">${fmtYen(curBalance)}</span>
+          <span class="goal-genre-sep">→</span>
+          <span style="font-weight:700;color:${idealBalance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYen(idealBalance)}</span>
+        </span>
+      </div>
+      <div style="font-size:11px;color:var(--gray-muted);padding:0 16px 12px">収支＝収入−支出−貯蓄−返済−投資</div>
+    </div>
+  `;
+
+  el.innerHTML = html;
+  injectSettingsStyles();
+  injectGoalsStyles();
+}
+
+function renderGoalGenreDetail(genre, items){
+  if (items.length === 0) {
+    return '<div class="empty-hint" style="padding:12px 16px">項目がありません（設定から追加できます）</div>';
+  }
+  return `
+    <div class="goal-genre-detail">
+      ${items.map(item => {
+        const listType = genre === '収入' ? 'income' : 'category';
+        const arr = genre === '収入' ? AppState.incomeSources : AppState.categories;
+        const idx = arr.indexOf(item);
+        const hasIdeal = item.idealAmount != null;
+        const itemGap = (hasIdeal ? item.idealAmount : (item.budget||0)) - (item.budget||0);
+        const itemIsGood = GENRE_INCREASE_IS_GOOD[genre] ? itemGap >= 0 : itemGap <= 0;
+        return `
+          <div class="settings-row">
+            <div class="settings-row-top" style="margin-bottom:10px">
+              <span style="font-weight:700;font-size:15.5px">${escapeHtml(item.name)}</span>
+              <span style="font-size:12px;color:var(--gray-muted);margin-left:auto;flex-shrink:0">現在 ${fmtYen(item.budget||0)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:72px">理想金額</span>
+              <input type="number" class="settings-input-amt" value="${hasIdeal ? item.idealAmount : ''}" placeholder="未設定" onchange="updateGoalIdealAmount('${listType}',${idx},this.value)">
+              ${hasIdeal && itemGap !== 0 ? `<span style="font-size:11.5px;font-weight:700;color:${itemIsGood?'var(--sage-deep)':'var(--red-deficit)'};flex-shrink:0;white-space:nowrap">${fmtYenSigned(itemGap)}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:72px;padding-top:10px">目指す姿</span>
+              <textarea class="goal-qualitative-input" rows="2" placeholder="例：外食を減らして自炊中心にする" oninput="updateGoalQualitative('${listType}',${idx},this.value)">${escapeHtml(item.qualitativeGoal || '')}</textarea>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function updateGoalIdealAmount(listType, idx, value){
+  const arr = listType === 'income' ? AppState.incomeSources : AppState.categories;
+  const item = arr[idx];
+  if (!item) return;
+  item.idealAmount = (value === '' || value == null) ? null : parseFloat(value);
+  saveLocalState();
+  renderGoalsPage();
+}
+
+function updateGoalQualitative(listType, idx, value){
+  const arr = listType === 'income' ? AppState.incomeSources : AppState.categories;
+  const item = arr[idx];
+  if (!item) return;
+  item.qualitativeGoal = value;
+  saveLocalState();
+}
+
+function injectGoalsStyles(){
+  if (document.getElementById('goals-extra-style')) return;
+  const style = document.createElement('style');
+  style.id = 'goals-extra-style';
+  style.textContent = `
+    .goal-qualitative-input {
+      flex: 1; resize: vertical; min-height: 44px;
+      padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--cream); font-family: inherit; font-size: 14px; color: var(--ink);
+      line-height: 1.5;
+    }
+    .goal-qualitative-input:focus { outline: 2px solid var(--terracotta-soft); border-color: var(--terracotta); }
+    .goal-genre-block { border-bottom: 1px solid var(--cream-deep); }
+    .goal-genre-block:last-of-type { border-bottom: none; }
+    .goal-genre-summary-btn {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      background: none; border: none; padding: 14px 16px; cursor: pointer;
+      font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .goal-genre-summary-btn:active { background: var(--cream-deep); }
+    .goal-genre-name { font-size: 14.5px; font-weight: 700; flex-shrink: 0; }
+    .goal-genre-amounts { flex: 1; display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; font-size: 13.5px; }
+    .goal-genre-cur { color: var(--ink-soft); }
+    .goal-genre-sep { color: var(--gray-muted); font-size: 12px; }
+    .goal-genre-ideal { font-weight: 700; font-size: 15px; }
+    .goal-genre-chevron { font-size: 13px; color: var(--gray-muted); flex-shrink: 0; transition: transform 0.15s ease; }
+    .goal-genre-chevron.open { transform: rotate(180deg); }
+    .goal-genre-gap { text-align: center; padding-bottom: 12px; }
+    .goal-genre-detail { padding: 0 16px 14px; }
+    .goal-balance-row {
+      display: flex; align-items: center; padding: 14px 16px 4px;
+      border-top: 1px solid var(--cream-deep); margin-top: 4px;
+    }
+    .goal-balance-label { font-size: 15px; font-weight: 700; flex: 1; }
+    .goal-balance-amounts { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
+  `;
+  document.head.appendChild(style);
 }
 
 let _envelopeEditBudgets = {};
@@ -3115,6 +3303,19 @@ function injectAnalysisStyles(){
   const style = document.createElement('style');
   style.id = 'analysis-extra-style';
   style.textContent = `
+    .goals-entry-banner {
+      width: 100%; display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, var(--terracotta) 0%, var(--terracotta-deep) 100%);
+      border: none; border-radius: 16px; padding: 16px 18px; margin-bottom: 14px;
+      cursor: pointer; box-shadow: 0 3px 10px rgba(168,85,47,0.25);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .goals-entry-banner:active { transform: scale(0.98); }
+    .goals-entry-icon { font-size: 24px; flex-shrink: 0; }
+    .goals-entry-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; flex: 1; }
+    .goals-entry-title { font-size: 16px; font-weight: 700; color: #fff; }
+    .goals-entry-sub { font-size: 12px; color: rgba(255,255,255,0.85); }
+    .goals-entry-arrow { font-size: 20px; color: #fff; flex-shrink: 0; }
     .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
     .kpi-card { background: var(--white); border-radius: 16px; padding: 16px; box-shadow: 0 2px 0 var(--line); position: relative; overflow: hidden; }
     .kpi-card.full { grid-column: span 2; }
