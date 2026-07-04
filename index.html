@@ -1563,9 +1563,9 @@ function genreCardHtml(genre, full, ym, opts){
 
 function genreCardsGridHtml(ym, opts){
   return [
+    genreCardHtml('貯蓄', true, ym, opts),
     genreCardHtml('収入', false, ym, opts),
     genreCardHtml('支出', false, ym, opts),
-    genreCardHtml('貯蓄', true, ym, opts),
     genreCardHtml('投資', false, ym, opts),
     genreCardHtml('返済', false, ym, opts),
   ].join('');
