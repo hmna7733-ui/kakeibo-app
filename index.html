@@ -1175,6 +1175,8 @@ function saveLocalState(){
   stor('kk_transactions', AppState.transactions);
   stor('kk_card_billings', AppState.cardBillings);
   if (currentUser) {
+    // このアカウントでの「未同期の変更」があったことを記録（クラウドとの新旧比較に使用）
+    stor('kk_pending_change_' + currentUser.uid, Date.now());
     // 連続した変更を1.5秒後にまとめてFirestoreへ送信
     clearTimeout(_saveToFirestoreTimer);
     _saveToFirestoreTimer = setTimeout(() => saveToFirestore(), 1500);
@@ -2528,21 +2530,15 @@ function renderAnalysis(){
     return { name: card.name, usage, billed, cardBillingYm, offsetLabel };
   }).filter(c => c.usage > 0 || c.billed !== null);
 
-  // 項目選択（デフォルトは支出最大カテゴリ）
-  if (!_analysisSelectedCategory || !AppState.categories.some(c=>c.name===_analysisSelectedCategory)) {
-    const topCat = Object.entries(summary.byCategory).sort((a,b)=>b[1]-a[1])[0];
-    _analysisSelectedCategory = topCat ? topCat[0] : (AppState.categories[0]||{}).name || null;
-  }
-  const yearMonths = getPastMonths(ym, 12);
-  const categoryYearData = yearMonths.map(m => {
-    const s = getMonthSummary(m);
-    return { ym: m, amount: s.byCategory[_analysisSelectedCategory] || 0 };
-  });
-  const maxCatYearAmount = Math.max(1, ...categoryYearData.map(d => d.amount));
-
   // 貯蓄・返済はsummaryから直接取得
   const savingsTotal = summary.savings || 0;
   const repaymentTotal = summary.repayment || 0;
+
+  // 今月使った項目を金額の大きい順に一覧表示（タップでその項目の履歴一覧）
+  const monthCats = AppState.categories
+    .map(c => ({...c, actual: summary.byCategory[c.name] || 0}))
+    .filter(c => c.actual > 0)
+    .sort((a,b) => b.actual - a.actual);
 
   let html = `
     <div class="home-genre-grid" style="margin-top:0">
@@ -2550,25 +2546,22 @@ function renderAnalysis(){
     </div>
 
     <div class="section-title mt">
-      <span class="label">項目別の推移（過去1年）</span>
+      <span class="label">${monthLabel(ym)}の項目別合計</span>
     </div>
-    <div class="chart-card">
-      <button type="button" class="drum-select-btn" style="margin-bottom:14px" onclick="openAnalysisCategoryDrum()">
-        ${_analysisSelectedCategory ? escapeHtml(_analysisSelectedCategory) : '項目を選択'}
-      </button>
-      ${_analysisSelectedCategory ? `
-        <div class="bar-chart bar-chart-labeled bar-chart-year">
-          ${categoryYearData.map(d => {
-            const h = Math.max(4, Math.round((d.amount / maxCatYearAmount) * 78));
-            const isCurrent = d.ym === ym;
-            return `<div class="bar-col">
-              <span class="bar-value-label small">${d.amount>0?fmtYenShort(d.amount):''}</span>
-              <div class="bar-wrap"><div class="bar ${isCurrent?'current':''}" style="height:${h}px"></div></div>
-              <span class="bar-month">${parseInt(d.ym.split('-')[1])}月</span>
-            </div>`;
-          }).join('')}
-        </div>
-      ` : '<div class="empty-hint">項目を選択してください</div>'}
+    <div class="card category-list">
+      ${monthCats.length === 0 ? '<div class="empty-hint">この月のデータがありません</div>' : monthCats.map(c => {
+        const pct = c.budget > 0 ? Math.min(100, (c.actual / c.budget) * 100) : (c.actual > 0 ? 100 : 0);
+        const over = c.budget > 0 && c.actual > c.budget;
+        return `
+          <div class="cat-item" style="cursor:pointer" onclick="openCategoryHistoryModal('${escapeJs(c.name)}')">
+            <div class="cat-item-top">
+              <span class="cat-name">${catNameHtml(c.name)}</span>
+              <span class="cat-amount">${fmtYen(c.actual)} ${c.budget>0?`<span class="budget">/ ${fmtYen(c.budget)}</span>`:''} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+            </div>
+            ${catDetailHtml(c.name)}
+            <div class="cat-bar-track"><div class="cat-bar-fill ${over?'over':''}" style="width:${pct}%"></div></div>
+          </div>`;
+      }).join('')}
     </div>
 
     <div class="section-title mt"><span class="label">カード請求 vs 利用累計（各カードの請求月設定に基づく）</span></div>
@@ -4017,8 +4010,9 @@ function submitAuth(){
   });
 }
 
-async function saveToFirestore(){
+async function saveToFirestore(ts){
   if (!currentUser || !db_fs) return;
+  const updatedAt = ts || Date.now();
   try {
     await db_fs.collection('users').doc(currentUser.uid)
       .collection('kakeibo_app').doc('data').set({
@@ -4033,8 +4027,11 @@ async function saveToFirestore(){
         kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
         kk_savings_first: stor('kk_savings_first') || {},
         kk_income_history: stor('kk_income_history') || {},
-        updatedAt: Date.now()
+        updatedAt
       });
+    // このタイムスタンプまでは同期済み。以降の編集だけが「未同期」として扱われる
+    stor('kk_last_sync_' + currentUser.uid, updatedAt);
+    stor('kk_pending_change_' + currentUser.uid, null);
   } catch(e) { console.warn('Firestore save error:', e); }
 }
 
@@ -4095,15 +4092,17 @@ function initNewUser(){
 
 async function loadFromFirestore(){
   if (!currentUser || !db_fs) return;
+  const uid = currentUser.uid;
   try {
     updateSyncBadge('syncing', '同期中');
-    const snap = await db_fs.collection('users').doc(currentUser.uid)
+    const snap = await db_fs.collection('users').doc(uid)
       .collection('kakeibo_app').doc('data').get();
 
     if (!snap.exists) {
       // 新規ユーザー：空のデフォルトデータで初期化してFirestoreに保存
       initNewUser();
-      await saveToFirestore();
+      const now = Date.now();
+      await saveToFirestore(now);
       showToast('ようこそ！設定から項目や支払い方法を追加してください');
       refreshActivePage();
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
@@ -4111,15 +4110,24 @@ async function loadFromFirestore(){
     }
 
     const d = snap.data();
-    const localTx = AppState.transactions || [];
-    const cloudTx = d.kk_transactions || [];
+    const cloudUpdatedAt = d.updatedAt || 0;
+    const lastSync = stor('kk_last_sync_' + uid);       // このデバイスでこのアカウントを最後に同期した時刻（未同期なら null）
+    const pendingChange = stor('kk_pending_change_' + uid); // 直近の同期後にこのデバイスで行われた編集の時刻（無ければ null）
 
-    if (cloudTx.length >= localTx.length) {
+    // このデバイスでこのアカウントを一度も同期したことが無い場合は、
+    // ローカルに残っている他アカウント／ゲスト時代のデータを絶対に優先せず、必ずクラウドを信頼する。
+    // 同期済みの場合は「前回の同期以降にこのデバイスで編集したか」だけで新旧を比較する
+    // （端末間で編集がすれ違っても、実際に手を動かした側のデータを優先できる）。
+    const localHasNewerUnsyncedEdit = lastSync !== null && pendingChange !== null &&
+      pendingChange > lastSync && pendingChange >= cloudUpdatedAt;
+
+    if (lastSync === null || !localHasNewerUnsyncedEdit) {
+      // クラウド側を信頼して取り込む
       AppState.categories = d.kk_categories || AppState.categories;
       AppState.incomeSources = d.kk_income_sources || AppState.incomeSources;
       AppState.paymentMethods = d.kk_payment_methods || AppState.paymentMethods;
       AppState.accounts = d.kk_accounts || AppState.accounts;
-      AppState.transactions = cloudTx;
+      AppState.transactions = d.kk_transactions || [];
       AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
       if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
       if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
@@ -4138,11 +4146,14 @@ async function loadFromFirestore(){
       stor('kk_accounts', AppState.accounts);
       stor('kk_transactions', AppState.transactions);
       stor('kk_card_billings', AppState.cardBillings);
+      stor('kk_last_sync_' + uid, cloudUpdatedAt || Date.now());
+      stor('kk_pending_change_' + uid, null);
 
       showToast('クラウドからデータを取得しました');
       refreshActivePage();
     } else {
-      await saveToFirestore();
+      // このデバイスでの編集の方が新しい（オフライン編集など）→ クラウドへ反映
+      await saveToFirestore(pendingChange);
       showToast('クラウドにデータを保存しました');
     }
     updateSyncBadge('synced', currentUser.email.split('@')[0]);
