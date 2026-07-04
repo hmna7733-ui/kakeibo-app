@@ -2548,22 +2548,6 @@ function renderAnalysis(){
       ${genreCardsGridHtml(ym, { showDelta: true, trendMode: true })}
     </div>
 
-    <div class="section-title mt"><span class="label">収支の推移</span></div>
-    <div class="chart-card">
-      <div class="bar-chart bar-chart-labeled">
-        ${monthSummaries.map(m => {
-          const h = Math.max(6, Math.round((Math.abs(m.balance) / maxAbsBalance) * 78));
-          const isCurrent = m.ym === ym;
-          const cls = m.balance < 0 ? 'minus' : (isCurrent ? 'current' : '');
-          return `<div class="bar-col">
-            <span class="bar-value-label">${fmtYenShort(m.balance)}</span>
-            <div class="bar-wrap"><div class="bar ${cls}" style="height:${h}px"></div></div>
-            <span class="bar-month">${parseInt(m.ym.split('-')[1])}月</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
     <div class="section-title mt">
       <span class="label">項目別の推移（過去1年）</span>
     </div>
