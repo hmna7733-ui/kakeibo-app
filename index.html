@@ -827,6 +827,14 @@
     <div class="card category-list" id="home-card-list">
       <div class="empty-hint">データがありません</div>
     </div>
+
+    <div class="section-title">
+      <span class="label">最新の入力履歴</span>
+      <span class="section-link" onclick="goToPage('history')">すべて見る</span>
+    </div>
+    <div class="card category-list" id="home-recent-tx">
+      <div class="empty-hint">記帳がありません</div>
+    </div>
   </div>
 </div>
 
@@ -1365,9 +1373,35 @@ function setIncomeActualForMonth(ym, data){
   stor('kk_income_actual', stored);
 }
 
+// カードの締め日（closingDay）に基づく実際の請求対象期間を計算する。
+// 締め日が未設定、または月末締めの場合は従来通り暦月（1日〜末日）のまま。
+// 例：締め日15日・referenceYm=2026-06 → 2026-05-16〜2026-06-15
+function getCardStatementRange(card, referenceYm){
+  const closingDay = card && card.closingDay;
+  const [y, m] = referenceYm.split('-').map(Number);
+  const lastDayOfRefMonth = new Date(y, m, 0).getDate();
+
+  if (!closingDay || closingDay >= lastDayOfRefMonth) {
+    return { startDate: `${referenceYm}-01`, endDate: `${referenceYm}-${pad2(lastDayOfRefMonth)}` };
+  }
+
+  const endDate = `${referenceYm}-${pad2(closingDay)}`;
+
+  const prevDate = new Date(y, m - 2, 1);
+  const prevYm = `${prevDate.getFullYear()}-${pad2(prevDate.getMonth()+1)}`;
+  const daysInPrevMonth = new Date(prevDate.getFullYear(), prevDate.getMonth()+1, 0).getDate();
+  const startDay = Math.min(closingDay + 1, daysInPrevMonth);
+  const startDate = `${prevYm}-${pad2(startDay)}`;
+
+  return { startDate, endDate };
+}
+
 function getCardUsageForMonth(ym, cardName){
-  const txs = getTransactionsForMonth(ym);
-  return txs.filter(t => t.method === cardName && !t.isIncome).reduce((a,t)=>a+t.amount, 0);
+  const card = AppState.paymentMethods.find(m => m.name === cardName);
+  const range = getCardStatementRange(card, ym);
+  return AppState.transactions
+    .filter(t => t.method === cardName && !t.isIncome && t.date >= range.startDate && t.date <= range.endDate)
+    .reduce((a,t) => a + t.amount, 0);
 }
 
 function getCardBillingForMonth(ym, cardName){
@@ -1514,6 +1548,31 @@ function renderHome(){
   }).filter(Boolean);
 
   cardListEl.innerHTML = cardRows.length ? cardRows.join('') : '<div class="empty-hint">この月のカード利用はありません</div>';
+
+  const recentEl = document.getElementById('home-recent-tx');
+  const recent = getTransactionsForMonth(ym)
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
+    .slice(0, 8);
+  if (recent.length === 0) {
+    recentEl.innerHTML = '<div class="empty-hint">この月の記帳がありません</div>';
+  } else {
+    recentEl.innerHTML = recent.map(t => {
+      const genre = txGenre(t);
+      const meta = GENRE_CARD_META[genre];
+      const genreDot = `<span class="hist-genre-dot" style="background:${meta.color}"></span>`;
+      return `
+      <div class="cat-item" style="cursor:pointer" onclick="openTxModal('${t.id}')">
+        <div class="cat-item-top">
+          <span class="cat-name">${genreDot}${catNameHtml(t.category)}</span>
+          <span class="cat-amount">${fmtYen(t.amount)}</span>
+        </div>
+        ${catDetailHtml(t.category)}
+        <div style="font-size:16px;color:var(--gray-muted)">${t.date.split('-').slice(1).join('/')} ・ ${escapeHtml(t.method)}${t.memo?' ・ '+escapeHtml(t.memo):''}</div>
+      </div>`;
+    }).join('');
+  }
+  injectHistoryStyles();
 }
 
 /* ============================================================
@@ -1610,10 +1669,57 @@ function openHomeGenreTxModal(genre){
 }
 
 // ジャンルカードから「履歴」：今月のそのジャンルの記帳一覧（新しい順・タップで編集）
+// ホームのジャンルカードの「履歴」：その月にそのジャンルで記帳された項目を、
+// 項目ごとの合計金額だけの一覧で表示する（例：食費 10,000円）。
+// 項目をタップすると、その項目の記帳一覧（今開いているような画面）が見られる。
 function openHomeGenreHistoryModal(genre){
   const ym = AppState.currentMonth;
-  const txs = getHistoryDisplayTxs(ym).filter(t => txGenre(t) === genre);
-  openHistoryModal(`${genreLabel(genre)}の履歴（${monthLabel(ym)}）`, txs);
+  const txs = getTransactionsForMonth(ym).filter(t => txGenre(t) === genre);
+
+  const totalsByCat = {};
+  txs.forEach(t => { totalsByCat[t.category] = (totalsByCat[t.category]||0) + t.amount; });
+
+  // 設定で並べた順番のまま表示する（金額順にはしない）
+  const orderedNames = genre === '収入'
+    ? AppState.incomeSources.map(s => s.name)
+    : AppState.categories.map(c => c.name);
+  const rows = orderedNames
+    .filter(name => totalsByCat[name] > 0)
+    .map(name => ({ name, amount: totalsByCat[name] }));
+  // 設定に見当たらない項目名で記帳されているものがあれば末尾に追加
+  Object.keys(totalsByCat).forEach(name => {
+    if (!orderedNames.includes(name)) rows.push({ name, amount: totalsByCat[name] });
+  });
+
+  const total = rows.reduce((a,r)=>a+r.amount, 0);
+
+  document.getElementById('history-modal-title').textContent = `${genreLabel(genre)}の履歴（${monthLabel(ym)}）`;
+  const body = document.getElementById('history-modal-body');
+  if (rows.length === 0) {
+    body.innerHTML = '<div class="empty-hint">この月の記帳がありません</div>';
+  } else {
+    body.innerHTML = `
+      <div style="font-size:14px;color:var(--gray-muted);padding:0 0 12px;border-bottom:1px dashed var(--line);margin-bottom:4px">
+        合計 <strong style="color:var(--ink);font-size:16px">${fmtYen(total)}</strong>（${rows.length}項目）
+      </div>
+      ${rows.map(r => `
+        <div class="cat-item" style="cursor:pointer" onclick="openGenreCategoryHistoryModal('${escapeJs(genre)}','${escapeJs(r.name)}')">
+          <div class="cat-item-top">
+            <span class="cat-name">${catNameHtml(r.name)}</span>
+            <span class="cat-amount">${fmtYen(r.amount)} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+          </div>
+          ${catDetailHtml(r.name)}
+        </div>`).join('')}
+    `;
+  }
+  document.getElementById('history-modal-overlay').classList.add('show');
+}
+
+// ジャンル履歴の項目をタップした時：その項目・そのジャンルの記帳一覧
+function openGenreCategoryHistoryModal(genre, catName){
+  const ym = AppState.currentMonth;
+  const txs = getTransactionsForMonth(ym).filter(t => t.category === catName && txGenre(t) === genre);
+  openHistoryModal(`${catName}の履歴（${monthLabel(ym)}）`, txs);
 }
 
 // 分析ページのジャンルカードから「推移」：過去12ヶ月の月別推移（上が直近）
@@ -1668,8 +1774,15 @@ function openCategoryHistoryModal(catName){
 
 function openCardHistoryModal(cardName, targetYm){
   const ym = targetYm || AppState.currentMonth;
-  const txs = getTransactionsForMonth(ym).filter(t => t.method === cardName);
-  openHistoryModal(`${cardName}の明細（${monthLabel(ym)}）`, txs);
+  const card = AppState.paymentMethods.find(m => m.name === cardName);
+  const range = getCardStatementRange(card, ym);
+  const txs = AppState.transactions.filter(t =>
+    t.method === cardName && !t.isIncome && t.date >= range.startDate && t.date <= range.endDate
+  );
+  const periodLabel = range.startDate === `${ym}-01`
+    ? monthLabel(ym)
+    : `${range.startDate.split('-').slice(1).join('/')}〜${range.endDate.split('-').slice(1).join('/')}`;
+  openHistoryModal(`${cardName}の明細（${periodLabel}）`, txs);
 }
 
 /* ============================================================
@@ -2367,6 +2480,14 @@ function closeDrum(apply){
     if (_drumTargetField === 'tx-category') { _selectedTxCategory = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'tx-method') { _selectedTxMethod = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'analysis-category') { _analysisSelectedCategory = val; renderAnalysis(); }
+    if (_drumTargetField && _drumTargetField.startsWith('closing-day-')) {
+      const idx = parseInt(_drumTargetField.replace('closing-day-',''), 10);
+      if (AppState.paymentMethods[idx]) {
+        AppState.paymentMethods[idx].closingDay = (val === '月末') ? null : parseInt(val, 10);
+        saveLocalState();
+        renderSettingsTabContent();
+      }
+    }
     if (_drumTargetField && _drumTargetField.startsWith('billing-day-')) {
       const idx = parseInt(_drumTargetField.replace('billing-day-',''), 10);
       if (AppState.paymentMethods[idx]) {
@@ -3132,7 +3253,8 @@ function renderCardsUsageTab(){
 
   const rows = cards.map(card => {
     const usage = getCardUsageForMonth(ym, card.name);
-    const txCount = getTransactionsForMonth(ym).filter(t => t.method === card.name).length;
+    const range = getCardStatementRange(card, ym);
+    const txCount = AppState.transactions.filter(t => t.method === card.name && !t.isIncome && t.date >= range.startDate && t.date <= range.endDate).length;
     return { ...card, usage, txCount };
   }).sort((a,b) => b.usage - a.usage);
 
@@ -3284,23 +3406,114 @@ function switchSettingsTab(tab){
 
 function renderSettingsTabContent(){
   const el = document.getElementById('settings-tab-content');
-  if (_settingsTab === 'categories') el.innerHTML = renderCategoriesSettings();
-  if (_settingsTab === 'income') el.innerHTML = renderIncomeSettings();
+  if (_settingsTab === 'categories') { el.innerHTML = renderCategoriesSettings(); initCategoryDragSort(); }
+  if (_settingsTab === 'income') { el.innerHTML = renderIncomeSettings(); initIncomeDragSort(); }
   if (_settingsTab === 'methods') el.innerHTML = renderMethodsSettings();
   if (_settingsTab === 'accounts') el.innerHTML = renderAccountsSettings();
 }
 
+/* ============================================================
+   設定リストのドラッグ並び替え（汎用・ポインターイベント方式）
+   containerEl内の「.settings-row[data-idx]」を、各行の「.drag-handle」を
+   つまんで上下にドラッグすると入れ替えられる。ドロップ時にDOM順から
+   新しいdata-idx配列を読み取ってonReorderへ渡す。
+   ============================================================ */
+function enableDragReorder(containerEl, onReorder){
+  if (!containerEl) return;
+  containerEl.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      const row = handle.closest('.settings-row');
+      if (!row) return;
+      e.preventDefault();
+
+      const rows = () => Array.from(containerEl.querySelectorAll('.settings-row'));
+      let startY = e.clientY;
+      row.classList.add('dragging-row');
+      row.style.position = 'relative';
+      row.style.zIndex = '20';
+      row.setPointerCapture(e.pointerId);
+
+      const onMove = (ev) => {
+        const dy = ev.clientY - startY;
+        row.style.transform = `translateY(${dy}px)`;
+
+        const rowRect = row.getBoundingClientRect();
+        const rowCenter = rowRect.top + rowRect.height / 2;
+
+        for (const other of rows()) {
+          if (other === row) continue;
+          const rect = other.getBoundingClientRect();
+          const otherCenter = rect.top + rect.height / 2;
+          const rowIsAfterInDom = row.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_PRECEDING;
+          if (!rowIsAfterInDom && rowCenter > otherCenter) {
+            // rowがDOM上で前にあり、下に十分動いた→otherの後ろへ移動
+            containerEl.insertBefore(row, other.nextSibling);
+            startY += rect.height;
+            break;
+          } else if (rowIsAfterInDom && rowCenter < otherCenter) {
+            // rowがDOM上で後にあり、上に十分動いた→otherの前へ移動
+            containerEl.insertBefore(row, other);
+            startY -= rect.height;
+            break;
+          }
+        }
+      };
+
+      const onUp = (ev) => {
+        row.releasePointerCapture(ev.pointerId);
+        row.removeEventListener('pointermove', onMove);
+        row.removeEventListener('pointerup', onUp);
+        row.removeEventListener('pointercancel', onUp);
+        row.classList.remove('dragging-row');
+        row.style.position = '';
+        row.style.zIndex = '';
+        row.style.transform = '';
+        const newOrder = rows().map(r => parseInt(r.dataset.idx, 10));
+        onReorder(newOrder);
+      };
+
+      row.addEventListener('pointermove', onMove);
+      row.addEventListener('pointerup', onUp);
+      row.addEventListener('pointercancel', onUp);
+    });
+  });
+}
+
+function initCategoryDragSort(){
+  document.querySelectorAll('.cat-drag-group').forEach(container => {
+    enableDragReorder(container, (newOrderRealIdx) => {
+      // このグループの行のAppState.categories上の実インデックス配列(表示順)から、
+      // 新しい順序で並び替えた要素配列を作り、元の位置にそのまま差し替える
+      const groupObjs = newOrderRealIdx.map(i => AppState.categories[i]);
+      const positions = newOrderRealIdx.slice().sort((a,b)=>a-b);
+      positions.forEach((pos, i) => { AppState.categories[pos] = groupObjs[i]; });
+      saveLocalState();
+      renderSettingsTabContent();
+    });
+  });
+}
+
+function initIncomeDragSort(){
+  const container = document.getElementById('income-drag-list');
+  enableDragReorder(container, (newOrder) => {
+    AppState.incomeSources = newOrder.map(i => AppState.incomeSources[i]);
+    saveLocalState();
+    renderSettingsTabContent();
+  });
+}
+
 function renderCategoriesSettings(){
   const groups = ['変動費','固定費','貯蓄','返済','投資保険'];
-  let html = `<div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。</div>`;
+  let html = `<div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。項目は「⠿」を長押ししてドラッグすると並び替えられます。</div>`;
   groups.forEach(g => {
     const cats = AppState.categories.filter(c => c.group === g);
-    html += `<div class="settings-group-label">${g}</div><div class="card settings-list">`;
+    html += `<div class="settings-group-label">${g}</div><div class="card settings-list cat-drag-group">`;
     cats.forEach((c, idx) => {
       const realIdx = AppState.categories.indexOf(c);
       html += `
-        <div class="settings-row">
+        <div class="settings-row" data-idx="${realIdx}">
           <div class="settings-row-top">
+            <span class="drag-handle">⠿</span>
             <input type="text" class="settings-input-name" value="${escapeHtml(c.name)}" oninput="updateCategoryField\(${realIdx},'name',this.value)" placeholder="項目名">
           </div>
           <div style="margin-bottom:6px">
@@ -3378,11 +3591,12 @@ function renderIncomeSettings(){
   });
 
   // ② 収入項目設定
-  html += `<div class="settings-group-label" style="margin-top:20px">収入項目の設定</div><div class="card settings-list">`;
+  html += `<div class="settings-group-label" style="margin-top:20px">収入項目の設定（⠿を長押しで並び替え）</div><div class="card settings-list" id="income-drag-list">`;
   AppState.incomeSources.forEach((s, idx) => {
     html += `
-      <div class="settings-row">
+      <div class="settings-row" data-idx="${idx}">
         <div class="settings-row-top">
+          <span class="drag-handle">⠿</span>
           <input type="text" class="settings-input-name" value="${escapeHtml(s.name)}" oninput="updateIncomeField\(${idx},'name',this.value)" placeholder="収入項目名">
         </div>
         <div class="settings-row-bottom">
@@ -3483,7 +3697,7 @@ function addIncomeSource(){
 
 function renderMethodsSettings(){
   const billingOffsetLabels = ['翌月（1ヶ月後）','翌々月（2ヶ月後）','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'];
-  let html = `<div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
+  let html = `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">「締め日」を設定すると、利用合計はその締め日を基準にした期間（例：締め日15日なら前月16日〜当月15日）で計算されます。カード会社の請求額とのズレが気になる場合はここを設定してください。未設定の場合は暦月（1日〜末日）で計算されます。</div><div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
   AppState.paymentMethods.forEach((m, idx) => {
     const offset = m.billingOffset || 1;
     html += `
@@ -3497,6 +3711,10 @@ function renderMethodsSettings(){
         </div>
         ${m.isCard ? `
           <div class="settings-row-method-sub">
+            <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">締め日</span>
+            <button type="button" class="drum-select-btn small" onclick="openClosingDayDrum(${idx})">${m.closingDay ? m.closingDay+'日' : '月末'}</button>
+          </div>
+          <div class="settings-row-method-sub" style="margin-top:6px">
             <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0">引落日</span>
             <button type="button" class="drum-select-btn small" onclick="openBillingDayDrum(${idx})">${m.billingDay ? m.billingDay+'日' : '未設定'}</button>
           </div>
@@ -3520,6 +3738,13 @@ function toggleMethodIsCard(idx, checked){
   AppState.paymentMethods[idx].isCard = checked;
   saveLocalState();
   renderSettingsTabContent();
+}
+function openClosingDayDrum(idx){
+  const m = AppState.paymentMethods[idx];
+  if (!m) return;
+  const values = ['月末', ...Array.from({length:28}, (_,i) => String(i+1))];
+  _drumTargetField = 'closing-day-' + idx;
+  buildDrumDOM('締め日を選択', values, m.closingDay ? String(m.closingDay) : '月末');
 }
 function openBillingDayDrum(idx){
   const m = AppState.paymentMethods[idx];
@@ -3829,9 +4054,12 @@ function injectSettingsStyles(){
     .settings-group-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 14px 0 8px; }
     .settings-group-label:first-child { margin-top: 0; }
     .settings-list { padding: 6px 14px; }
-    .settings-row { padding: 12px 0; border-bottom: 1px solid var(--cream-deep); }
+    .settings-row { padding: 12px 0; border-bottom: 1px solid var(--cream-deep); background: var(--white); }
     .settings-row:last-of-type { border-bottom: none; }
+    .settings-row.dragging-row { box-shadow: 0 6px 16px rgba(58,51,43,0.18); border-radius: 10px; }
     .settings-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .drag-handle { flex-shrink: 0; font-size: 18px; color: var(--gray-muted); cursor: grab; padding: 2px 4px; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+    .drag-handle:active { cursor: grabbing; color: var(--terracotta); }
     .settings-row-bottom { display: flex; align-items: center; gap: 8px; }
     .settings-input-name { flex: 1; border: 1px solid var(--line); background: var(--cream); border-radius: 8px; font-size: 13.5px; font-weight: 700; padding: 7px 10px; font-family: inherit; color: var(--ink); min-width: 0; width: 100%; box-sizing: border-box; }
     .settings-input-amt { flex: 1; border: none; background: var(--cream); border-radius: 8px; padding: 7px 9px; font-size: 13px; text-align: right; font-family: inherit; color: var(--ink); min-width: 0; }
