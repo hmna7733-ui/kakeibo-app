@@ -2000,6 +2000,8 @@ function refreshActivePage(){
   if (activePage === 'history') renderHistory();
   if (activePage === 'analysis') renderAnalysis();
   if (activePage === 'cards') renderCards();
+  // 封筒・設定・理想の目標ページは入力中の内容を消さないよう自動再描画しない
+  // （次にそのページを開き直した時に最新データが反映される）
 }
 
 /* ============================================================
@@ -4408,8 +4410,9 @@ function initFirebase(){
         currentUser = user;
         document.getElementById('login-screen').classList.remove('show');
         updateSyncBadge('synced', user.email.split('@')[0]);
-        loadFromFirestore();
+        startRealtimeSync();
       } else {
+        stopRealtimeSync();
         currentUser = null;
         showLoginScreen();
         updateSyncBadge('offline', '未連携');
@@ -4543,13 +4546,39 @@ function initNewUser(){
   stor('kk_envelope_reset_ym', null);
 }
 
-async function loadFromFirestore(){
+let _firestoreUnsubscribe = null;
+
+// リアルタイム同期を開始（onSnapshotでクラウド側の変更を即座に受け取る）
+function startRealtimeSync(){
   if (!currentUser || !db_fs) return;
+  stopRealtimeSync(); // 念のため既存のリスナーを解除してから張り直す
   const uid = currentUser.uid;
+  updateSyncBadge('syncing', '同期中');
+
+  _firestoreUnsubscribe = db_fs.collection('users').doc(uid)
+    .collection('kakeibo_app').doc('data')
+    .onSnapshot(
+      snap => handleFirestoreSnapshot(snap, uid),
+      err => {
+        console.warn('Firestore snapshot error:', err);
+        updateSyncBadge('synced', currentUser.email.split('@')[0]);
+      }
+    );
+}
+
+function stopRealtimeSync(){
+  if (_firestoreUnsubscribe) {
+    _firestoreUnsubscribe();
+    _firestoreUnsubscribe = null;
+  }
+}
+
+async function handleFirestoreSnapshot(snap, uid){
+  if (!currentUser) return;
   try {
-    updateSyncBadge('syncing', '同期中');
-    const snap = await db_fs.collection('users').doc(uid)
-      .collection('kakeibo_app').doc('data').get();
+    // 自分のこの端末が今まさに書き込んだ内容がサーバー確定前に返ってきただけの場合はスキップ
+    // （二重処理や不要な再描画を避ける）
+    if (snap.metadata.hasPendingWrites) return;
 
     if (!snap.exists) {
       // 新規ユーザー：空のデフォルトデータで初期化してFirestoreに保存
@@ -4566,45 +4595,24 @@ async function loadFromFirestore(){
     const cloudUpdatedAt = d.updatedAt || 0;
     const lastSync = stor('kk_last_sync_' + uid);       // このデバイスでこのアカウントを最後に同期した時刻（未同期なら null）
     const pendingChange = stor('kk_pending_change_' + uid); // 直近の同期後にこのデバイスで行われた編集の時刻（無ければ null）
+    const isFirstLoad = lastSync === null;
+
+    // すでに反映済みの内容なら何もしない（自分自身の確定書き込みのエコーなど）
+    if (!isFirstLoad && cloudUpdatedAt <= lastSync) {
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+      return;
+    }
 
     // このデバイスでこのアカウントを一度も同期したことが無い場合は、
     // ローカルに残っている他アカウント／ゲスト時代のデータを絶対に優先せず、必ずクラウドを信頼する。
     // 同期済みの場合は「前回の同期以降にこのデバイスで編集したか」だけで新旧を比較する
     // （端末間で編集がすれ違っても、実際に手を動かした側のデータを優先できる）。
-    const localHasNewerUnsyncedEdit = lastSync !== null && pendingChange !== null &&
+    const localHasNewerUnsyncedEdit = !isFirstLoad && pendingChange !== null &&
       pendingChange > lastSync && pendingChange >= cloudUpdatedAt;
 
-    if (lastSync === null || !localHasNewerUnsyncedEdit) {
-      // クラウド側を信頼して取り込む
-      AppState.categories = d.kk_categories || AppState.categories;
-      AppState.incomeSources = d.kk_income_sources || AppState.incomeSources;
-      AppState.paymentMethods = d.kk_payment_methods || AppState.paymentMethods;
-      AppState.accounts = d.kk_accounts || AppState.accounts;
-      AppState.transactions = d.kk_transactions || [];
-      AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
-      if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
-      if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
-      if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
-      if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
-      if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
-
-      // クラウドの収入履歴（旧方式）が未統合なら、ここでも記帳データへ取り込む
-      migrateIncomeHistoryToTransactions();
-      // クラウド側のデータにもジャンル未設定の記帳があれば、ここで確定させる
-      backfillTransactionGenres();
-      // クラウド側のカードにも旧「締め日」設定が残っていれば変換
-      migrateCardClosingDayToRange();
-
-      stor('kk_categories', AppState.categories);
-      stor('kk_income_sources', AppState.incomeSources);
-      stor('kk_payment_methods', AppState.paymentMethods);
-      stor('kk_accounts', AppState.accounts);
-      stor('kk_transactions', AppState.transactions);
-      stor('kk_card_billings', AppState.cardBillings);
-      stor('kk_last_sync_' + uid, cloudUpdatedAt || Date.now());
-      stor('kk_pending_change_' + uid, null);
-
-      showToast('クラウドからデータを取得しました');
+    if (isFirstLoad || !localHasNewerUnsyncedEdit) {
+      applyCloudSnapshot(d, cloudUpdatedAt, uid);
+      showToast(isFirstLoad ? 'クラウドからデータを取得しました' : '他の端末での更新を反映しました');
       refreshActivePage();
     } else {
       // このデバイスでの編集の方が新しい（オフライン編集など）→ クラウドへ反映
@@ -4613,9 +4621,40 @@ async function loadFromFirestore(){
     }
     updateSyncBadge('synced', currentUser.email.split('@')[0]);
   } catch(e) {
-    console.warn('Firestore load error:', e);
+    console.warn('Firestore snapshot handling error:', e);
     updateSyncBadge('synced', currentUser.email.split('@')[0]);
   }
+}
+
+// クラウドのデータをローカルへ反映する（初回ロード・他端末からの更新受信の両方で共用）
+function applyCloudSnapshot(d, cloudUpdatedAt, uid){
+  AppState.categories = d.kk_categories || AppState.categories;
+  AppState.incomeSources = d.kk_income_sources || AppState.incomeSources;
+  AppState.paymentMethods = d.kk_payment_methods || AppState.paymentMethods;
+  AppState.accounts = d.kk_accounts || AppState.accounts;
+  AppState.transactions = d.kk_transactions || [];
+  AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
+  if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
+  if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
+  if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
+  if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
+  if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
+
+  // クラウドの収入履歴（旧方式）が未統合なら、ここでも記帳データへ取り込む
+  migrateIncomeHistoryToTransactions();
+  // クラウド側のデータにもジャンル未設定の記帳があれば、ここで確定させる
+  backfillTransactionGenres();
+  // クラウド側のカードにも旧「締め日」設定が残っていれば変換
+  migrateCardClosingDayToRange();
+
+  stor('kk_categories', AppState.categories);
+  stor('kk_income_sources', AppState.incomeSources);
+  stor('kk_payment_methods', AppState.paymentMethods);
+  stor('kk_accounts', AppState.accounts);
+  stor('kk_transactions', AppState.transactions);
+  stor('kk_card_billings', AppState.cardBillings);
+  stor('kk_last_sync_' + uid, cloudUpdatedAt || Date.now());
+  stor('kk_pending_change_' + uid, null);
 }
 
 function updateSyncBadge(state, label){
