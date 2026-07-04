@@ -2640,13 +2640,20 @@ function renderEnvelopePage(){
         const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
         const over = e.balance < 0;
         const diffColor = e.diff >= 0 ? 'var(--sage-deep)' : 'var(--red-deficit)';
+        const envColor = over ? 'var(--red-deficit)' : 'var(--sage-deep)';
         return `
           <div class="cat-item">
-            <div class="cat-item-top" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
+            <div class="cat-item-top" style="cursor:pointer;align-items:center" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
               <span class="cat-name">${catNameHtml(e.name)}</span>
-              <span style="display:flex;align-items:baseline;gap:10px;flex-shrink:0;white-space:nowrap">
-                <span style="font-size:18px;font-weight:700;color:${diffColor}">今月の差額 ${fmtYenSigned(e.diff).replace('+','')}</span>
-                <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+              <span style="display:flex;align-items:center;gap:14px;flex-shrink:0;white-space:nowrap">
+                <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+                  <span style="font-size:10.5px;color:var(--gray-muted);font-weight:700">今月の差額</span>
+                  <span style="font-size:21px;font-weight:800;color:${diffColor};font-family:'Shippori Mincho',serif">${fmtYenSigned(e.diff).replace('+','')}</span>
+                </span>
+                <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+                  <span style="font-size:10.5px;color:var(--gray-muted);font-weight:700">封筒 ›</span>
+                  <span style="font-size:20px;font-weight:800;color:${envColor};font-family:'Shippori Mincho',serif">${fmtYenSigned(e.balance).replace('+','')}</span>
+                </span>
               </span>
             </div>
             ${catDetailHtml(e.name)}
