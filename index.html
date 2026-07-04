@@ -3751,9 +3751,12 @@ function addIncomeSource(){
   renderSettingsTabContent();
 }
 
+// 「開始/終了」の月指定ラベル（来月・今月・先月・先々月）
+const MONTHS_BACK_LABELS = { '-1':'来月', '0':'今月', '1':'先月', '2':'先々月' };
+function monthsBackLabel(n){ return MONTHS_BACK_LABELS[String(n != null ? n : 0)] || '今月'; }
+
 function renderMethodsSettings(){
   const billingOffsetLabels = ['翌月（1ヶ月後）','翌々月（2ヶ月後）','3ヶ月後','4ヶ月後','5ヶ月後','6ヶ月後'];
-  const monthsBackLabels = ['今月','先月','先々月'];
   let html = `<div style="font-size:13px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">「請求範囲」の開始・終了を設定すると、利用合計はその期間（例：先月16日〜今月15日、先々月21日〜先月20日など）で計算されます。カード会社の請求額とのズレが気になる場合はここを設定してください。未設定の場合は暦月（1日〜末日）で計算されます。</div><div class="settings-group-label">支払い方法・カード</div><div class="card settings-list">`;
   AppState.paymentMethods.forEach((m, idx) => {
     const offset = m.billingOffset || 1;
@@ -3771,12 +3774,12 @@ function renderMethodsSettings(){
         ${m.isCard ? `
           <div class="settings-row-method-sub">
             <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:40px">開始</span>
-            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'start')">${monthsBackLabels[startMonthsBack]}</button>
+            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'start')">${monthsBackLabel(startMonthsBack)}</button>
             <button type="button" class="drum-select-btn small" onclick="openRangeDayDrum(${idx},'start')">${m.rangeStartDay || 1}日</button>
           </div>
           <div class="settings-row-method-sub" style="margin-top:6px">
             <span style="font-size:13px;color:var(--gray-muted);flex-shrink:0;width:40px">終了</span>
-            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'end')">${monthsBackLabels[endMonthsBack]}</button>
+            <button type="button" class="drum-select-btn small" onclick="openRangeMonthDrum(${idx},'end')">${monthsBackLabel(endMonthsBack)}</button>
             <button type="button" class="drum-select-btn small" onclick="openRangeDayDrum(${idx},'end')">${m.rangeEndDay ? m.rangeEndDay+'日' : '月末'}</button>
           </div>
           <div class="settings-row-method-sub" style="margin-top:6px">
@@ -3807,13 +3810,12 @@ function toggleMethodIsCard(idx, checked){
 function openRangeMonthDrum(idx, which){
   const m = AppState.paymentMethods[idx];
   if (!m) return;
-  const values = ['0','1','2'];
-  const labels = ['今月','先月','先々月'];
+  const values = ['-1','0','1','2'];
   const cur = which === 'start'
     ? String(m.rangeStartMonthsBack != null ? m.rangeStartMonthsBack : 0)
     : String(m.rangeEndMonthsBack != null ? m.rangeEndMonthsBack : 0);
   _drumTargetField = `range-month-${which}-${idx}`;
-  buildDrumDOM(which === 'start' ? '請求範囲の開始月を選択' : '請求範囲の終了月を選択', values, cur, v => labels[parseInt(v,10)]);
+  buildDrumDOM(which === 'start' ? '請求範囲の開始月を選択' : '請求範囲の終了月を選択', values, cur, v => monthsBackLabel(parseInt(v,10)));
 }
 function openRangeDayDrum(idx, which){
   const m = AppState.paymentMethods[idx];
