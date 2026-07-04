@@ -1528,9 +1528,8 @@ function renderHome(){
   const cardListEl = document.getElementById('home-card-list');
   const cards = AppState.paymentMethods.filter(m => m.isCard);
   const cardRows = cards.map(card => {
-    const billingTargetYm = getBillingTargetYm(ym, card);
-    const usage = getCardUsageForMonth(billingTargetYm, card.name);
-    const billed = getCardBillingForMonth(billingTargetYm, card.name);
+    const usage = getCardUsageForMonth(ym, card.name);
+    const billed = getCardBillingForMonth(ym, card.name);
     if (usage === 0 && billed === null) return null;
     const diff = billed !== null ? (billed - usage) : null;
     let diffHtml = '<span class="budget">未確定</span>';
@@ -1539,12 +1538,9 @@ function renderHome(){
       diffHtml = `<span style="color:${ok?'var(--sage)':'var(--red-deficit)'};font-weight:700">${ok?'差 一致':'差 '+fmtYenSigned(diff)}</span>`;
     }
     return `
-      <div class="cat-item" style="cursor:pointer" onclick="openCardHistoryModal('${escapeJs(card.name)}','${billingTargetYm}')">
+      <div class="cat-item" style="cursor:pointer" onclick="openCardHistoryModal('${escapeJs(card.name)}')">
         <div class="cat-item-top">
-          <span class="cat-name" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
-            ${escapeHtml(card.name)}
-            <span style="font-size:11px;font-weight:400;color:var(--gray-muted)">${monthLabel(billingTargetYm)}の利用分</span>
-          </span>
+          <span class="cat-name">${escapeHtml(card.name)}</span>
           <span class="cat-amount">利用 ${fmtYen(usage)} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
         </div>
         <div style="font-size:15.5px;text-align:right">${billed!==null?`請求 ${fmtYen(billed)} ・ `:''}${diffHtml}</div>
