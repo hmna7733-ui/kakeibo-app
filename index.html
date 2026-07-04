@@ -2498,7 +2498,8 @@ function getEnvelopesForMonth(ym){
     const budget = monthlyBudgets[cat.name] !== undefined ? monthlyBudgets[cat.name] : cat.budget || 0;
     const actual = getCategoryActualForMonth(ym, cat.name);
     const balance = getEnvelopeBalance(ym, cat.name);
-    return { name: cat.name, group: cat.group, budget, actual, balance };
+    const diff = budget - actual; // 今月の差額（予算 − 実績）
+    return { name: cat.name, group: cat.group, budget, actual, balance, diff };
   }).filter(e => e.budget > 0 || e.actual > 0);
 }
 
@@ -2638,11 +2639,15 @@ function renderEnvelopePage(){
       ${envelopes.length === 0 ? '<div class="empty-hint">データがありません</div>' : envelopes.map(e => {
         const pct = e.budget > 0 ? Math.min(100, Math.max(0, (e.actual / e.budget) * 100)) : 0;
         const over = e.balance < 0;
+        const diffColor = e.diff >= 0 ? 'var(--sage-deep)' : 'var(--red-deficit)';
         return `
           <div class="cat-item">
             <div class="cat-item-top" style="cursor:pointer" onclick="openEnvelopeHistoryModal('${escapeJs(e.name)}')">
               <span class="cat-name">${catNameHtml(e.name)}</span>
-              <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'};flex-shrink:0;white-space:nowrap">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+              <span style="display:flex;align-items:baseline;gap:10px;flex-shrink:0;white-space:nowrap">
+                <span style="font-size:18px;font-weight:700;color:${diffColor}">今月の差額 ${fmtYenSigned(e.diff).replace('+','')}</span>
+                <span class="cat-amount" style="color:${over?'var(--red-deficit)':'var(--ink)'}">封筒 ${fmtYenSigned(e.balance).replace('+','')} <span style="font-size:14px;color:var(--gray-muted)">›</span></span>
+              </span>
             </div>
             ${catDetailHtml(e.name)}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
