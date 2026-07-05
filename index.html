@@ -3736,7 +3736,42 @@ function initIncomeDragSort(){
 
 function renderCategoriesSettings(){
   const groups = ['変動費','固定費','貯蓄','返済','投資保険'];
-  let html = `<div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。項目は「⠿」を長押ししてドラッグすると並び替えられます。</div>`;
+
+  const incomeTotal = AppState.incomeSources.reduce((a,s)=>a+(s.budget||0),0);
+  const expenseTotal = AppState.categories.filter(c=>['変動費','固定費'].includes(c.group)).reduce((a,c)=>a+(c.budget||0),0);
+  const savingsTotal = AppState.categories.filter(c=>c.group==='貯蓄').reduce((a,c)=>a+(c.budget||0),0);
+  const repayTotal = AppState.categories.filter(c=>c.group==='返済').reduce((a,c)=>a+(c.budget||0),0);
+
+  let html = `
+    <div class="cat-budget-summary-grid">
+      <div class="cat-budget-summary-card">
+        <div class="cbs-label">収入</div>
+        <div class="cbs-value" id="cat-budget-total-収入" style="color:var(--terracotta)">${fmtYen(incomeTotal)}</div>
+      </div>
+      <div class="cat-budget-summary-card">
+        <div class="cbs-label">支出</div>
+        <div class="cbs-value" id="cat-budget-total-支出" style="color:var(--ink)">${fmtYen(expenseTotal)}</div>
+      </div>
+      <div class="cat-budget-summary-card">
+        <div class="cbs-label">貯金</div>
+        <div class="cbs-value" id="cat-budget-total-貯金" style="color:var(--sage-deep)">${fmtYen(savingsTotal)}</div>
+      </div>
+      <div class="cat-budget-summary-card">
+        <div class="cbs-label">返済</div>
+        <div class="cbs-value" id="cat-budget-total-返済" style="color:var(--red-deficit)">${fmtYen(repayTotal)}</div>
+      </div>
+    </div>
+    <div class="cat-budget-diff-card">
+      <div class="cbd-row">
+        <span class="cbd-label">支出＋貯金＋返済 合計</span>
+        <span class="cbd-value" id="cat-budget-total-outflow">${fmtYen(expenseTotal + savingsTotal + repayTotal)}</span>
+      </div>
+      <div class="cbd-row" style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--line)">
+        <span class="cbd-label" style="font-weight:700;color:var(--ink)">収入予算との差額</span>
+        <span class="cbd-value cbd-diff" id="cat-budget-diff" style="color:${(incomeTotal - (expenseTotal+savingsTotal+repayTotal))>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(incomeTotal - (expenseTotal + savingsTotal + repayTotal))}</span>
+      </div>
+    </div>
+    <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。項目は「⠿」を長押ししてドラッグすると並び替えられます。</div>`;
   groups.forEach(g => {
     const cats = AppState.categories.filter(c => c.group === g);
     html += `<div class="settings-group-label">${g}</div><div class="card settings-list cat-drag-group">`;
@@ -3763,10 +3798,40 @@ function renderCategoriesSettings(){
   return html;
 }
 
+// 項目・予算ページ上部の合計カードを、画面全体を再描画せずその場で更新する
+// （入力中のフォーカスを失わせないため）
+function refreshCategoryBudgetSummary(){
+  const incomeEl = document.getElementById('cat-budget-total-収入');
+  const expenseEl = document.getElementById('cat-budget-total-支出');
+  const savingsEl = document.getElementById('cat-budget-total-貯金');
+  const repayEl = document.getElementById('cat-budget-total-返済');
+  const outflowEl = document.getElementById('cat-budget-total-outflow');
+  const diffEl = document.getElementById('cat-budget-diff');
+  if (!incomeEl && !expenseEl && !savingsEl && !repayEl) return; // このタブが表示されていない
+
+  const incomeTotal = AppState.incomeSources.reduce((a,s)=>a+(s.budget||0),0);
+  const expenseTotal = AppState.categories.filter(c=>['変動費','固定費'].includes(c.group)).reduce((a,c)=>a+(c.budget||0),0);
+  const savingsTotal = AppState.categories.filter(c=>c.group==='貯蓄').reduce((a,c)=>a+(c.budget||0),0);
+  const repayTotal = AppState.categories.filter(c=>c.group==='返済').reduce((a,c)=>a+(c.budget||0),0);
+  const outflowTotal = expenseTotal + savingsTotal + repayTotal;
+  const diff = incomeTotal - outflowTotal;
+
+  if (incomeEl) incomeEl.textContent = fmtYen(incomeTotal);
+  if (expenseEl) expenseEl.textContent = fmtYen(expenseTotal);
+  if (savingsEl) savingsEl.textContent = fmtYen(savingsTotal);
+  if (repayEl) repayEl.textContent = fmtYen(repayTotal);
+  if (outflowEl) outflowEl.textContent = fmtYen(outflowTotal);
+  if (diffEl) {
+    diffEl.textContent = fmtYenSigned(diff);
+    diffEl.style.color = diff >= 0 ? 'var(--sage-deep)' : 'var(--red-deficit)';
+  }
+}
+
 function updateCategoryField(idx, field, value){
   if (!AppState.categories[idx]) return;
   AppState.categories[idx][field] = field === 'budget' ? (parseFloat(value)||0) : value;
   saveLocalState();
+  if (field === 'budget') refreshCategoryBudgetSummary();
 }
 
 function deleteCategory(idx){
@@ -3911,6 +3976,7 @@ function updateIncomeField(idx, field, value){
   if (!AppState.incomeSources[idx]) return;
   AppState.incomeSources[idx][field] = field === 'budget' ? (parseFloat(value)||0) : value;
   saveLocalState();
+  if (field === 'budget') refreshCategoryBudgetSummary();
 }
 function deleteIncomeSource(idx){
   const target = AppState.incomeSources[idx];
@@ -4305,6 +4371,24 @@ function injectSettingsStyles(){
   const style = document.createElement('style');
   style.id = 'settings-extra-style';
   style.textContent = `
+    .cat-budget-summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .cat-budget-summary-card {
+      background: var(--white); border-radius: 14px; padding: 12px 14px;
+      box-shadow: 0 2px 0 var(--line);
+    }
+    .cbs-label { font-size: 11.5px; color: var(--gray-muted); font-weight: 700; margin-bottom: 4px; }
+    .cbs-value { font-family: 'Shippori Mincho', serif; font-size: 19px; font-weight: 700; }
+    .cat-budget-diff-card {
+      background: var(--white); border-radius: 14px; padding: 14px 16px;
+      box-shadow: 0 2px 0 var(--line); margin-bottom: 14px;
+    }
+    .cbd-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .cbd-label { font-size: 13px; color: var(--gray-muted); }
+    .cbd-value { font-family: 'Shippori Mincho', serif; font-size: 16px; font-weight: 700; }
+    .cbd-diff { font-size: 20px; }
     .settings-tab {
       flex-shrink: 0; padding: 8px 16px; border-radius: 100px; border: 1px solid var(--line);
       background: var(--white); color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
