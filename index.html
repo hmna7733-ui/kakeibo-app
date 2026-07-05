@@ -2567,24 +2567,14 @@ let _analysisSelectedCategory = null;
    月次予算（封筒管理用）
    ============================================================ */
 function getMonthlyBudgets(ym){
-  const resetYm = getEnvelopeResetYm();
   const stored = stor('kk_monthly_budgets') || {};
 
   // その月に個別設定があればそれを使う
   if (stored[ym]) return stored[ym];
 
-  // 前月を探す（ただし基準年月以前の保存値は引き継がない）
-  const [y,m] = ym.split('-').map(Number);
-  const prev = new Date(y, m-2, 1);
-  const prevYm = `${prev.getFullYear()}-${pad2(prev.getMonth()+1)}`;
-
-  // 前月が基準年月以前なら引き継がずデフォルトへ
-  if (!resetYm || prevYm > resetYm) {
-    const prevStored = stored[prevYm];
-    if (prevStored) return {...prevStored};
-  }
-
-  // デフォルトカテゴリ設定を使う
+  // 個別設定が無い月は、常に設定（項目・予算）のデフォルト値を使う。
+  // 他の月で保存した値をここに引き継ぐことは絶対にしない
+  // （例：4月だけ予算を変更して保存しても、5月以降はデフォルトのまま）
   const defaults = {};
   AppState.categories.forEach(c => { defaults[c.name] = c.budget || 0; });
   return defaults;
