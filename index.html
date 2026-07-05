@@ -1157,9 +1157,16 @@ function saveLocalState(){
   if (currentUser) {
     // このアカウントでの「未同期の変更」があったことを記録（クラウドとの新旧比較に使用）
     stor('kk_pending_change_' + currentUser.uid, Date.now());
-    // 連続した変更を1.5秒後にまとめてFirestoreへ送信
-    clearTimeout(_saveToFirestoreTimer);
-    _saveToFirestoreTimer = setTimeout(() => saveToFirestore(), 1500);
+    if (_initialSyncComplete) {
+      // 連続した変更を1.5秒後にまとめてFirestoreへ送信
+      clearTimeout(_saveToFirestoreTimer);
+      _saveToFirestoreTimer = setTimeout(() => saveToFirestore(), 1500);
+    } else {
+      // ログイン直後などクラウドからの最初の同期がまだ終わっていない間は、
+      // 空のデータをうっかり書き込んでしまわないよう送信を保留する。
+      // 同期完了後にまとめて送信される。
+      _pendingSaveDuringSync = true;
+    }
   }
 }
 
@@ -1427,10 +1434,12 @@ function goToIncomeSettings(){
 
 function goToPage(page){
   // 設定・理想の目標ページから離脱する場合、保留中のFirestore保存を即時実行
+  // （ただし、ログイン直後などまだクラウドとの最初のすり合わせが済んでいない間は、
+  // 空のデータを誤って書き込んでしまわないよう実行しない）
   const currentPage = document.querySelector('.page.active')?.id?.replace('page-','');
   if ((currentPage === 'settings' || currentPage === 'goals') && page !== currentPage) {
     clearTimeout(_saveToFirestoreTimer);
-    if (currentUser) saveToFirestore();
+    if (currentUser && _initialSyncComplete) saveToFirestore();
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4660,11 +4669,15 @@ function initNewUser(){
 }
 
 let _firestoreUnsubscribe = null;
+let _initialSyncComplete = false; // 今回のログインでクラウドとの最初のすり合わせが終わったか
+let _pendingSaveDuringSync = false; // 同期完了前に編集があった場合に立てるフラグ
 
 // リアルタイム同期を開始（onSnapshotでクラウド側の変更を即座に受け取る）
 function startRealtimeSync(){
   if (!currentUser || !db_fs) return;
   stopRealtimeSync(); // 念のため既存のリスナーを解除してから張り直す
+  _initialSyncComplete = false;
+  _pendingSaveDuringSync = false;
   const uid = currentUser.uid;
   updateSyncBadge('syncing', '同期中');
 
@@ -4684,6 +4697,18 @@ function stopRealtimeSync(){
     _firestoreUnsubscribe();
     _firestoreUnsubscribe = null;
   }
+  _initialSyncComplete = false;
+  _pendingSaveDuringSync = false;
+}
+
+// 最初の同期が完了した後の共通処理：保留していた保存があれば送信する
+function markInitialSyncComplete(){
+  _initialSyncComplete = true;
+  if (_pendingSaveDuringSync) {
+    _pendingSaveDuringSync = false;
+    clearTimeout(_saveToFirestoreTimer);
+    _saveToFirestoreTimer = setTimeout(() => saveToFirestore(), 1500);
+  }
 }
 
 async function handleFirestoreSnapshot(snap, uid){
@@ -4698,6 +4723,7 @@ async function handleFirestoreSnapshot(snap, uid){
       initNewUser();
       const now = Date.now();
       await saveToFirestore(now);
+      markInitialSyncComplete();
       showToast('ようこそ！設定から項目や支払い方法を追加してください');
       refreshActivePage();
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
@@ -4712,6 +4738,7 @@ async function handleFirestoreSnapshot(snap, uid){
 
     // すでに反映済みの内容なら何もしない（自分自身の確定書き込みのエコーなど）
     if (!isFirstLoad && cloudUpdatedAt <= lastSync) {
+      markInitialSyncComplete();
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
       return;
     }
@@ -4732,6 +4759,7 @@ async function handleFirestoreSnapshot(snap, uid){
       await saveToFirestore(pendingChange);
       showToast('クラウドにデータを保存しました');
     }
+    markInitialSyncComplete();
     updateSyncBadge('synced', currentUser.email.split('@')[0]);
   } catch(e) {
     console.warn('Firestore snapshot handling error:', e);
