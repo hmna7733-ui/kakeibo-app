@@ -788,7 +788,8 @@
       <h1 id="page-title">家計手帖</h1>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button class="reload-btn" id="reload-btn" onclick="manualReload()" title="最新版に更新">↺</button>
+      <button class="reload-btn" id="sync-pull-btn" onclick="manualPullFromCloud()" title="クラウドから読み込む（この端末を上書き）">⬇️</button>
+      <button class="reload-btn" id="sync-push-btn" onclick="manualPushToCloud()" title="クラウドへ書き込む（クラウドを上書き）">⬆️</button>
       <button class="sync-badge offline" id="sync-badge" onclick="onSyncBadgeClick()">
         <span class="sync-dot" id="sync-dot"></span>
         <span id="sync-label">未連携</span>
@@ -2017,12 +2018,14 @@ function refreshActivePage(){
    トースト
    ============================================================ */
 let _toastTimer = null;
-function showToast(msg){
+function showToast(msg, onClick){
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
+  el.style.cursor = onClick ? 'pointer' : '';
+  el.onclick = onClick || null;
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(()=> el.classList.remove('show'), 2200);
+  _toastTimer = setTimeout(()=> el.classList.remove('show'), onClick ? 5000 : 2200);
 }
 
 /* ============================================================
@@ -4481,7 +4484,7 @@ self.addEventListener('fetch', e => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          showToast('アップデートがあります。更新ボタンを押してください ↺');
+          showToast('アップデートがあります。タップして更新 ↺', () => manualReload());
         }
       });
     });
@@ -4507,6 +4510,19 @@ function initFirebase(){
     firebaseApp = firebase.initializeApp(firebaseConfig, 'kakeibo-app');
     auth = firebaseApp.auth();
     db_fs = firebaseApp.firestore();
+
+    // オフラインキャッシュを有効化。これにより、再ログイン時に前回取得した
+    // データがネットワーク往復を待たずにすぐ表示され（その後サーバーの最新
+    // 内容で自動的に更新される）、体感的な読み込み速度が大きく改善する。
+    // 複数タブを開いていても動くようsynchronizeTabsを有効にする。
+    // 対応していないブラウザ（プライベートブラウジング等）では静かに無視する。
+    try {
+      db_fs.enablePersistence({ synchronizeTabs: true }).catch(err => {
+        console.warn('Firestore persistence not enabled:', err.code);
+      });
+    } catch(persistErr) {
+      console.warn('Firestore persistence setup error:', persistErr);
+    }
 
     auth.onAuthStateChanged(user => {
       if (skipLoginMode) return;
@@ -4965,6 +4981,56 @@ async function restoreFromCloudBackup(){
       showToast('復元に失敗しました');
     }
   }, '復元する');
+}
+
+/* ============================================================
+   手動同期（読み込み・書き込みを別々に実行）
+   複数端末を行き来していて自動同期の結果に不安がある時、
+   どちらの内容を優先するかを利用者が自分で決められるようにする。
+   ============================================================ */
+async function manualPullFromCloud(){
+  if (!currentUser || !db_fs) { showToast('ログインしていないと使えません'); return; }
+  showConfirm('クラウドの内容で、この端末のデータを上書きして読み込みます。よろしいですか？', async () => {
+    try {
+      updateSyncBadge('syncing', '読み込み中');
+      // キャッシュではなく必ずサーバーの最新内容を取りに行く
+      const snap = await db_fs.collection('users').doc(currentUser.uid)
+        .collection('kakeibo_app').doc('data').get({ source: 'server' });
+      if (!snap.exists) {
+        showToast('クラウドにまだデータがありません');
+        updateSyncBadge('synced', currentUser.email.split('@')[0]);
+        return;
+      }
+      const d = snap.data();
+      applyCloudSnapshot(d, d.updatedAt || Date.now(), currentUser.uid);
+      markInitialSyncComplete();
+      showToast('クラウドから読み込みました');
+      refreshActivePage();
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+    } catch(e) {
+      console.warn('Manual pull error:', e);
+      showToast('読み込みに失敗しました');
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+    }
+  }, '読み込む');
+}
+
+async function manualPushToCloud(){
+  if (!currentUser || !db_fs) { showToast('ログインしていないと使えません'); return; }
+  showConfirm('この端末の今のデータで、クラウドを上書きします。よろしいですか？', async () => {
+    try {
+      updateSyncBadge('syncing', '書き込み中');
+      clearTimeout(_saveToFirestoreTimer);
+      await saveToFirestore();
+      markInitialSyncComplete();
+      showToast('クラウドへ書き込みました');
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+    } catch(e) {
+      console.warn('Manual push error:', e);
+      showToast('書き込みに失敗しました');
+      updateSyncBadge('synced', currentUser.email.split('@')[0]);
+    }
+  }, '書き込む');
 }
 
 initApp();
