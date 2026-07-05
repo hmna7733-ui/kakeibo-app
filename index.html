@@ -3602,6 +3602,27 @@ function renderSettings(){
     </div>
     <div id="settings-tab-content"></div>
 
+    <!-- バックアップ -->
+    <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--line)">
+      <div class="settings-group-label" style="margin-top:0">バックアップ</div>
+      <div style="font-size:13px;color:var(--gray-muted);margin-bottom:12px;line-height:1.7">
+        今のデータをファイルに保存しておけます。万が一データが消えてしまった時の備えに、時々バックアップを取っておくことをおすすめします。
+      </div>
+      <button onclick="exportBackupData()" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--terracotta);color:white;font-family:'Zen Maru Gothic',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">
+        📥 バックアップを保存（ファイルに書き出す）
+      </button>
+      <input type="file" id="backup-import-input" accept="application/json" style="display:none" onchange="importBackupFile(this)">
+      <button onclick="triggerImportBackup()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid var(--line);background:white;color:var(--ink-soft);font-family:'Zen Maru Gothic',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">
+        📤 バックアップファイルから復元する
+      </button>
+      ${currentUser ? `
+        <button onclick="restoreFromCloudBackup()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid var(--line);background:white;color:var(--ink-soft);font-family:'Zen Maru Gothic',sans-serif;font-size:14px;font-weight:700;cursor:pointer">
+          🛟 クラウドの「ひとつ前の状態」から復元する
+        </button>
+        <div style="font-size:11.5px;color:var(--gray-muted);margin-top:8px;line-height:1.6">保存するたびに、その直前の状態を自動でクラウドに1つだけ残しています。誤って上書きしてしまった時などに使えます。</div>
+      ` : ''}
+    </div>
+
     <!-- 全データ削除 -->
     <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--line)">
       <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:12px;line-height:1.7">
@@ -4406,6 +4427,12 @@ function initFirebase(){
 
     auth.onAuthStateChanged(user => {
       if (skipLoginMode) return;
+      // アカウントが切り替わる瞬間、直前のアカウント宛てに予約されていた
+      // 保留中のFirestore書き込みタイマーを必ず破棄する。
+      // これを消さないと、ログアウト／別アカウントへのログイン直後に
+      // 古いタイマーが発火して、切り替わった先のアカウントへ古いデータを
+      // 誤って書き込んでしまうことがあった（データ消失の原因）。
+      clearTimeout(_saveToFirestoreTimer);
       if (user) {
         currentUser = user;
         document.getElementById('login-screen').classList.remove('show');
@@ -4491,25 +4518,37 @@ function submitAuth(){
 async function saveToFirestore(ts){
   if (!currentUser || !db_fs) return;
   const updatedAt = ts || Date.now();
+  const uid = currentUser.uid;
+  const docRef = db_fs.collection('users').doc(uid).collection('kakeibo_app').doc('data');
   try {
-    await db_fs.collection('users').doc(currentUser.uid)
-      .collection('kakeibo_app').doc('data').set({
-        kk_categories: AppState.categories,
-        kk_income_sources: AppState.incomeSources,
-        kk_payment_methods: AppState.paymentMethods,
-        kk_accounts: AppState.accounts,
-        kk_transactions: AppState.transactions,
-        kk_card_billings: AppState.cardBillings,
-        kk_income_actual: stor('kk_income_actual') || {},
-        kk_monthly_budgets: stor('kk_monthly_budgets') || {},
-        kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
-        kk_savings_first: stor('kk_savings_first') || {},
-        kk_income_history: stor('kk_income_history') || {},
-        updatedAt
-      });
+    // 上書きする前に、今クラウドにある内容を「ひとつ前の状態」として退避しておく
+    // （誤って空のデータや古いデータで上書きしてしまった時の保険）
+    try {
+      const prevSnap = await docRef.get();
+      if (prevSnap.exists) {
+        await db_fs.collection('users').doc(uid).collection('kakeibo_app').doc('data_backup_prev').set(prevSnap.data());
+      }
+    } catch(backupErr) {
+      console.warn('Backup snapshot error:', backupErr);
+    }
+
+    await docRef.set({
+      kk_categories: AppState.categories,
+      kk_income_sources: AppState.incomeSources,
+      kk_payment_methods: AppState.paymentMethods,
+      kk_accounts: AppState.accounts,
+      kk_transactions: AppState.transactions,
+      kk_card_billings: AppState.cardBillings,
+      kk_income_actual: stor('kk_income_actual') || {},
+      kk_monthly_budgets: stor('kk_monthly_budgets') || {},
+      kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
+      kk_savings_first: stor('kk_savings_first') || {},
+      kk_income_history: stor('kk_income_history') || {},
+      updatedAt
+    });
     // このタイムスタンプまでは同期済み。以降の編集だけが「未同期」として扱われる
-    stor('kk_last_sync_' + currentUser.uid, updatedAt);
-    stor('kk_pending_change_' + currentUser.uid, null);
+    stor('kk_last_sync_' + uid, updatedAt);
+    stor('kk_pending_change_' + uid, null);
   } catch(e) { console.warn('Firestore save error:', e); }
 }
 
@@ -4685,7 +4724,15 @@ function onSyncBadgeClick(){
     skipLoginMode = false;
     showLoginScreen();
   } else {
-    showConfirm(`${currentUser.email}\nログアウトしますか？`, () => {
+    showConfirm(`${currentUser.email}\nログアウトしますか？`, async () => {
+      // 保留中の自動保存タイマーをキャンセルし、未保存の変更があれば
+      // ログアウト前に必ずこのアカウント宛てに保存しておく
+      // （これをしないと、後で古いタイマーが発火して別アカウントに誤って
+      // 書き込んでしまったり、最後の編集が失われたりすることがあった）
+      clearTimeout(_saveToFirestoreTimer);
+      try { await saveToFirestore(); } catch(e) { console.warn('Logout flush save error:', e); }
+
+      stopRealtimeSync();
       auth.signOut().then(() => {
         // ログアウト時にlocalStorageのアプリデータを全クリア
         clearAllLocalData();
@@ -4718,6 +4765,104 @@ function deleteAllData(){
     },
     '削除する'
   );
+}
+
+/* ============================================================
+   バックアップ（ファイル書き出し／読み込み・クラウドの直前状態への復元）
+   ============================================================ */
+function buildBackupObject(){
+  return {
+    kk_categories: AppState.categories,
+    kk_income_sources: AppState.incomeSources,
+    kk_payment_methods: AppState.paymentMethods,
+    kk_accounts: AppState.accounts,
+    kk_transactions: AppState.transactions,
+    kk_card_billings: AppState.cardBillings,
+    kk_income_actual: stor('kk_income_actual') || {},
+    kk_monthly_budgets: stor('kk_monthly_budgets') || {},
+    kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
+    kk_savings_first: stor('kk_savings_first') || {},
+    kk_income_history: stor('kk_income_history') || {},
+    exportedAt: Date.now(),
+  };
+}
+
+function exportBackupData(){
+  const backup = buildBackupObject();
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = `kakeibo-backup-${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('バックアップファイルを保存しました');
+}
+
+function triggerImportBackup(){
+  const input = document.getElementById('backup-import-input');
+  if (input) input.click();
+}
+
+function importBackupFile(input){
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try {
+      data = JSON.parse(e.target.result);
+    } catch(err) {
+      showToast('ファイルの読み込みに失敗しました（正しいバックアップファイルか確認してください）');
+      return;
+    }
+    showConfirm('このバックアップファイルの内容で、今のデータを上書きします。よろしいですか？', () => {
+      applyBackupObject(data);
+      showToast('バックアップから復元しました');
+      goToPage('home');
+    }, '復元する');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function applyBackupObject(d){
+  AppState.categories = d.kk_categories || [];
+  AppState.incomeSources = d.kk_income_sources || [];
+  AppState.paymentMethods = d.kk_payment_methods || [];
+  AppState.accounts = d.kk_accounts || [];
+  AppState.transactions = d.kk_transactions || [];
+  AppState.cardBillings = d.kk_card_billings || {};
+  stor('kk_income_actual', d.kk_income_actual || {});
+  stor('kk_monthly_budgets', d.kk_monthly_budgets || {});
+  stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym || null);
+  stor('kk_savings_first', d.kk_savings_first || {});
+  stor('kk_income_history', d.kk_income_history || {});
+  saveLocalState();
+  if (currentUser) saveToFirestore();
+}
+
+async function restoreFromCloudBackup(){
+  if (!currentUser || !db_fs) { showToast('ログインしていないと使えません'); return; }
+  showConfirm('クラウドに残っている「ひとつ前の状態」から復元します。今のデータは上書きされます。よろしいですか？', async () => {
+    try {
+      const snap = await db_fs.collection('users').doc(currentUser.uid)
+        .collection('kakeibo_app').doc('data_backup_prev').get();
+      if (!snap.exists) {
+        showToast('バックアップが見つかりませんでした');
+        return;
+      }
+      applyBackupObject(snap.data());
+      showToast('ひとつ前の状態から復元しました');
+      goToPage('home');
+    } catch(e) {
+      console.warn('Cloud backup restore error:', e);
+      showToast('復元に失敗しました');
+    }
+  }, '復元する');
 }
 
 initApp();
