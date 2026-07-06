@@ -2048,12 +2048,20 @@ function deleteCurrentTransaction(){
   });
 }
 
-function refreshActivePage(){
+function refreshActivePage(force){
   const activePage = document.querySelector('.page.active').id.replace('page-','');
   if (activePage === 'home') renderHome();
   if (activePage === 'history') renderHistory();
   if (activePage === 'analysis') renderAnalysis();
   if (activePage === 'cards') renderCards();
+  if (force) {
+    // ログイン直後の最初の同期時のみ、封筒・設定・理想の目標ページも反映する
+    // （まだ何も入力していない直後なので、編集内容を消してしまう心配がない）
+    if (activePage === 'envelope') renderEnvelopePage();
+    if (activePage === 'settings') renderSettings();
+    if (activePage === 'goals') renderGoalsPage();
+  }
+  // それ以外のタイミング（利用中の他端末からのリアルタイム反映）では、
   // 封筒・設定・理想の目標ページは入力中の内容を消さないよう自動再描画しない
   // （次にそのページを開き直した時に最新データが反映される）
 }
@@ -5056,7 +5064,7 @@ async function handleFirestoreSnapshot(snap, uid){
       await saveToFirestore(now);
       markInitialSyncComplete();
       showToast('ようこそ！設定から項目や支払い方法を追加してください');
-      refreshActivePage();
+      refreshActivePage(true);
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
       return;
     }
@@ -5084,7 +5092,7 @@ async function handleFirestoreSnapshot(snap, uid){
     if (isFirstLoad || !localHasNewerUnsyncedEdit) {
       applyCloudSnapshot(d, cloudUpdatedAt, uid);
       showToast(isFirstLoad ? 'クラウドからデータを取得しました' : '他の端末での更新を反映しました');
-      refreshActivePage();
+      refreshActivePage(isFirstLoad);
     } else {
       // このデバイスでの編集の方が新しい（オフライン編集など）→ クラウドへ反映
       await saveToFirestore(pendingChange);
@@ -5330,7 +5338,7 @@ async function manualPullFromCloud(){
       applyCloudSnapshot(d, d.updatedAt || Date.now(), currentUser.uid);
       markInitialSyncComplete();
       showToast('クラウドから読み込みました');
-      refreshActivePage();
+      refreshActivePage(true);
       updateSyncBadge('synced', currentUser.email.split('@')[0]);
     } catch(e) {
       console.warn('Manual pull error:', e);
