@@ -977,6 +977,18 @@
   </div>
 </div>
 
+<!-- 財布の編集モーダル -->
+<div class="modal-overlay" id="wallet-modal-overlay">
+  <div class="modal-sheet" style="max-height:88vh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span id="wallet-modal-title">財布を追加</span>
+      <button class="modal-close" onclick="closeWalletModal()">×</button>
+    </div>
+    <div id="wallet-modal-body"></div>
+  </div>
+</div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -1046,6 +1058,7 @@ const AppState = {
   accounts: [],
   transactions: [],
   cardBillings: {},
+  wallets: [],
   currentMonth: null,
   initialized: false,
   editingTxId: null,
@@ -1072,6 +1085,7 @@ function loadLocalState(){
   AppState.accounts = stor('kk_accounts') || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
   AppState.transactions = stor('kk_transactions');
   AppState.cardBillings = stor('kk_card_billings') || {};
+  AppState.wallets = stor('kk_wallets') || [];
 
   // マイグレーション: 「貯蓄返済」グループを「貯蓄」「返済」に分割
   const savingsNames = ['貯金','七海貯金','結桜貯金','車検','更新費'];
@@ -1179,6 +1193,7 @@ function saveLocalState(){
   stor('kk_accounts', AppState.accounts);
   stor('kk_transactions', AppState.transactions);
   stor('kk_card_billings', AppState.cardBillings);
+  stor('kk_wallets', AppState.wallets);
   if (currentUser) {
     // このアカウントでの「未同期の変更」があったことを記録（クラウドとの新旧比較に使用）
     stor('kk_pending_change_' + currentUser.uid, Date.now());
@@ -2986,13 +3001,44 @@ let _envelopeEditBudgets = {};
 /* ============================================================
    封筒管理ページ（独立ページ）
    ============================================================ */
+function getManagementMode(){
+  return stor('kk_management_mode') || 'envelope';
+}
+function setManagementMode(mode){
+  stor('kk_management_mode', mode);
+  if (currentUser) saveToFirestore();
+}
+
+function switchManagementMode(mode){
+  if (getManagementMode() === mode) return;
+  setManagementMode(mode);
+  renderEnvelopePage();
+}
+
 function renderEnvelopePage(){
+  const mode = getManagementMode();
+  const toggleHtml = `
+    <div class="mgmt-mode-toggle">
+      <button type="button" class="mgmt-mode-btn ${mode==='envelope'?'active':''}" onclick="switchManagementMode('envelope')">📋 項目別管理（封筒）</button>
+      <button type="button" class="mgmt-mode-btn ${mode==='wallet'?'active':''}" onclick="switchManagementMode('wallet')">👛 財布で管理する</button>
+    </div>
+  `;
+
+  const bodyHtml = mode === 'wallet' ? renderWalletModeContent() : renderEnvelopeModeContent();
+
+  document.getElementById('envelope-content').innerHTML = toggleHtml + bodyHtml;
+  injectAnalysisStyles();
+  injectSettingsStyles();
+  injectWalletStyles();
+}
+
+function renderEnvelopeModeContent(){
   const ym = AppState.currentMonth;
   const envelopes = getEnvelopesForMonth(ym);
   const totalEnvBalance = envelopes.reduce((a,e)=>a+e.balance, 0);
   const resetYm = getEnvelopeResetYm();
 
-  let html = `
+  return `
     <!-- 合計残高 + リセット情報 -->
     <div class="card" style="padding:16px 18px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${resetYm?'8px':'0'}">
@@ -3057,10 +3103,188 @@ function renderEnvelopePage(){
       </div>
     </div>
   `;
+}
 
-  document.getElementById('envelope-content').innerHTML = html;
-  injectAnalysisStyles();
-  injectSettingsStyles();
+/* ============================================================
+   財布管理モード（支払い方法で管理する）
+   ============================================================ */
+function getWalletSummary(wallet, ym){
+  const txs = getTransactionsForMonth(ym);
+  const incomeTotal = txs
+    .filter(t => (wallet.incomeSources||[]).includes(t.category) && txGenre(t) === '収入')
+    .reduce((a,t) => a + t.amount, 0);
+  const expenseTotal = txs
+    .filter(t => (wallet.paymentMethods||[]).includes(t.method) && txGenre(t) !== '収入')
+    .reduce((a,t) => a + t.amount, 0);
+  return { incomeTotal, expenseTotal, balance: incomeTotal - expenseTotal };
+}
+
+function renderWalletModeContent(){
+  const ym = AppState.currentMonth;
+  const wallets = AppState.wallets || [];
+
+  return `
+    <div class="section-title" style="margin-top:0">
+      <span class="label">財布一覧</span>
+    </div>
+    <div class="card category-list">
+      ${wallets.length === 0 ? '<div class="empty-hint">財布がまだありません。下の「＋ 財布を追加」から作成してください</div>' : wallets.map((w, idx) => {
+        const { incomeTotal, expenseTotal, balance } = getWalletSummary(w, ym);
+        return `
+          <div class="cat-item" style="cursor:pointer" onclick="openWalletHistoryModal(${idx})">
+            <div class="cat-item-top" style="align-items:center">
+              <span class="cat-name">👛 ${escapeHtml(w.name)}</span>
+              <span style="font-size:21px;font-weight:800;font-family:'Shippori Mincho',serif;color:${balance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(balance).replace('+','')}</span>
+            </div>
+            <div style="font-size:13px;color:var(--gray-muted);margin-bottom:8px">今月の収入 ${fmtYen(incomeTotal)} − 今月の支払い ${fmtYen(expenseTotal)}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+              ${(w.incomeSources||[]).map(s=>`<span class="wallet-tag income">${escapeHtml(s)}</span>`).join('')}
+              ${(w.paymentMethods||[]).map(m=>`<span class="wallet-tag method">${escapeHtml(m)}</span>`).join('')}
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button onclick="event.stopPropagation();openWalletEditModal(${idx})" class="wallet-edit-btn">編集 ›</button>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+    <button class="settings-add-btn" onclick="openWalletEditModal(null)">＋ 財布を追加</button>
+  `;
+}
+
+// タップした財布の対象取引（収入項目＋支払い方法）の履歴一覧を表示
+function openWalletHistoryModal(idx){
+  const wallet = AppState.wallets[idx];
+  if (!wallet) return;
+  const ym = AppState.currentMonth;
+  const txs = getTransactionsForMonth(ym).filter(t =>
+    ((wallet.incomeSources||[]).includes(t.category) && txGenre(t) === '収入') ||
+    ((wallet.paymentMethods||[]).includes(t.method) && txGenre(t) !== '収入')
+  );
+  openHistoryModal(`${wallet.name}の履歴（${monthLabel(ym)}）`, txs);
+}
+
+let _walletModalEditIdx = null;
+let _walletModalSelectedIncome = [];
+let _walletModalSelectedMethods = [];
+
+function openWalletEditModal(idx){
+  _walletModalEditIdx = (idx === null || idx === undefined) ? null : idx;
+  const wallet = _walletModalEditIdx != null ? AppState.wallets[_walletModalEditIdx] : null;
+  _walletModalSelectedIncome = wallet ? [...(wallet.incomeSources||[])] : [];
+  _walletModalSelectedMethods = wallet ? [...(wallet.paymentMethods||[])] : [];
+
+  document.getElementById('wallet-modal-title').textContent = wallet ? '財布を編集' : '財布を追加';
+  document.getElementById('wallet-modal-body').innerHTML = `
+    <div class="form-field">
+      <label>財布の名前</label>
+      <input type="text" id="wallet-name-input" value="${wallet ? escapeHtml(wallet.name) : ''}" placeholder="例：生活費財布">
+    </div>
+    <div class="form-field">
+      <label>収入項目（複数選択可）</label>
+      <div class="wallet-select-list">
+        ${AppState.incomeSources.length === 0 ? '<div class="empty-hint">収入項目がありません</div>' : AppState.incomeSources.map(s => `
+          <label class="wallet-select-row">
+            <input type="checkbox" ${_walletModalSelectedIncome.includes(s.name)?'checked':''} onchange="toggleWalletSelect('income','${escapeJs(s.name)}',this.checked)">
+            <span>${escapeHtml(s.name)}</span>
+          </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-field">
+      <label>支払い方法（複数選択可）</label>
+      <div class="wallet-select-list">
+        ${AppState.paymentMethods.length === 0 ? '<div class="empty-hint">支払い方法がありません</div>' : AppState.paymentMethods.map(m => `
+          <label class="wallet-select-row">
+            <input type="checkbox" ${_walletModalSelectedMethods.includes(m.name)?'checked':''} onchange="toggleWalletSelect('method','${escapeJs(m.name)}',this.checked)">
+            <span>${escapeHtml(m.name)}</span>
+          </label>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      ${wallet ? `<button onclick="deleteWalletFromModal()" style="flex:none;padding:14px 18px;border-radius:12px;border:1.5px solid var(--red-deficit);background:white;color:var(--red-deficit);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">削除</button>` : ''}
+      <button onclick="saveWalletFromModal()" style="flex:1;padding:14px;border-radius:12px;border:none;background:var(--terracotta);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">保存する</button>
+    </div>
+  `;
+  document.getElementById('wallet-modal-overlay').classList.add('show');
+}
+
+function toggleWalletSelect(type, name, checked){
+  const arr = type === 'income' ? _walletModalSelectedIncome : _walletModalSelectedMethods;
+  const i = arr.indexOf(name);
+  if (checked && i === -1) arr.push(name);
+  if (!checked && i !== -1) arr.splice(i, 1);
+}
+
+function closeWalletModal(){
+  document.getElementById('wallet-modal-overlay').classList.remove('show');
+}
+
+function saveWalletFromModal(){
+  const nameInput = document.getElementById('wallet-name-input');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) { showToast('財布の名前を入力してください'); return; }
+  if (_walletModalSelectedIncome.length === 0 && _walletModalSelectedMethods.length === 0) {
+    showToast('収入項目か支払い方法を1つ以上選んでください');
+    return;
+  }
+  const walletData = {
+    name,
+    incomeSources: [..._walletModalSelectedIncome],
+    paymentMethods: [..._walletModalSelectedMethods],
+  };
+  if (_walletModalEditIdx != null && AppState.wallets[_walletModalEditIdx]) {
+    AppState.wallets[_walletModalEditIdx] = { ...AppState.wallets[_walletModalEditIdx], ...walletData };
+  } else {
+    AppState.wallets.push(walletData);
+  }
+  saveLocalState();
+  closeWalletModal();
+  showToast('財布を保存しました');
+  renderEnvelopePage();
+}
+
+function deleteWalletFromModal(){
+  if (_walletModalEditIdx == null) return;
+  const wallet = AppState.wallets[_walletModalEditIdx];
+  if (!wallet) return;
+  showConfirm(`「${wallet.name}」を削除しますか？`, () => {
+    AppState.wallets.splice(_walletModalEditIdx, 1);
+    saveLocalState();
+    closeWalletModal();
+    showToast('削除しました');
+    renderEnvelopePage();
+  }, '削除する');
+}
+
+function injectWalletStyles(){
+  if (document.getElementById('wallet-extra-style')) return;
+  const style = document.createElement('style');
+  style.id = 'wallet-extra-style';
+  style.textContent = `
+    .mgmt-mode-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+    .mgmt-mode-btn {
+      flex: 1; padding: 12px 8px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: var(--white);
+      color: var(--ink-soft); font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mgmt-mode-btn.active { background: var(--terracotta); border-color: var(--terracotta); color: #fff; }
+    .wallet-tag { font-size: 11px; padding: 3px 9px; border-radius: 100px; font-weight: 700; }
+    .wallet-tag.income { background: var(--terracotta-soft); color: var(--terracotta); }
+    .wallet-tag.method { background: var(--sage-soft); color: var(--sage-deep); }
+    .wallet-edit-btn {
+      font-size: 12.5px; padding: 6px 12px; border-radius: 8px;
+      border: 1px solid var(--line); background: white; color: var(--ink-soft);
+      font-family: inherit; cursor: pointer;
+    }
+    .wallet-select-list {
+      display: flex; flex-direction: column; gap: 2px; max-height: 180px;
+      overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px;
+    }
+    .wallet-select-row { display: flex; align-items: center; gap: 10px; padding: 8px; font-size: 14px; cursor: pointer; }
+    .wallet-select-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--terracotta); flex-shrink: 0; }
+  `;
+  document.head.appendChild(style);
 }
 
 function toggleEnvelopeEdit(){
@@ -4719,6 +4943,7 @@ async function saveToFirestore(ts){
       kk_accounts: AppState.accounts,
       kk_transactions: AppState.transactions,
       kk_card_billings: AppState.cardBillings,
+      kk_wallets: AppState.wallets,
       kk_income_actual: stor('kk_income_actual') || {},
       kk_monthly_budgets: stor('kk_monthly_budgets') || {},
       kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
@@ -4751,6 +4976,7 @@ function initNewUser(){
   AppState.accounts = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_ACCOUNTS));
   AppState.transactions = [];
   AppState.cardBillings = {};
+  AppState.wallets = [];
   // ストレージもクリア
   stor('kk_categories', AppState.categories);
   stor('kk_income_sources', AppState.incomeSources);
@@ -4758,6 +4984,7 @@ function initNewUser(){
   stor('kk_accounts', AppState.accounts);
   stor('kk_transactions', AppState.transactions);
   stor('kk_card_billings', AppState.cardBillings);
+  stor('kk_wallets', AppState.wallets);
   // 履歴系もクリア
   stor('kk_income_actual', {});
   stor('kk_income_history', {});
@@ -4765,6 +4992,7 @@ function initNewUser(){
   stor('kk_savings_first', {});
   stor('kk_envelope_reset_ym', null);
   stor('kk_home_income_mode', 'prev');
+  stor('kk_management_mode', 'envelope');
 }
 
 let _firestoreUnsubscribe = null;
@@ -4874,10 +5102,12 @@ function applyCloudSnapshot(d, cloudUpdatedAt, uid){
   AppState.accounts = d.kk_accounts || AppState.accounts;
   AppState.transactions = d.kk_transactions || [];
   AppState.cardBillings = d.kk_card_billings || AppState.cardBillings;
+  AppState.wallets = d.kk_wallets || AppState.wallets;
   if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
   if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
   if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
   if (d.kk_home_income_mode) stor('kk_home_income_mode', d.kk_home_income_mode);
+  if (d.kk_management_mode) stor('kk_management_mode', d.kk_management_mode);
   if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
   if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
 
@@ -4894,6 +5124,7 @@ function applyCloudSnapshot(d, cloudUpdatedAt, uid){
   stor('kk_accounts', AppState.accounts);
   stor('kk_transactions', AppState.transactions);
   stor('kk_card_billings', AppState.cardBillings);
+  stor('kk_wallets', AppState.wallets);
   stor('kk_last_sync_' + uid, cloudUpdatedAt || Date.now());
   stor('kk_pending_change_' + uid, null);
 }
@@ -4912,9 +5143,9 @@ function updateSyncBadge(state, label){
    ============================================================ */
 const KK_STORAGE_KEYS = [
   'kk_categories','kk_income_sources','kk_payment_methods',
-  'kk_accounts','kk_transactions','kk_card_billings',
+  'kk_accounts','kk_transactions','kk_card_billings','kk_wallets',
   'kk_income_actual','kk_income_history','kk_monthly_budgets',
-  'kk_savings_first','kk_envelope_reset_ym','kk_home_income_mode'
+  'kk_savings_first','kk_envelope_reset_ym','kk_home_income_mode','kk_management_mode'
 ];
 
 function clearAllLocalData(){
@@ -4980,12 +5211,14 @@ function buildBackupObject(){
     kk_accounts: AppState.accounts,
     kk_transactions: AppState.transactions,
     kk_card_billings: AppState.cardBillings,
+    kk_wallets: AppState.wallets,
     kk_income_actual: stor('kk_income_actual') || {},
     kk_monthly_budgets: stor('kk_monthly_budgets') || {},
     kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
     kk_savings_first: stor('kk_savings_first') || {},
     kk_income_history: stor('kk_income_history') || {},
     kk_home_income_mode: stor('kk_home_income_mode') || 'prev',
+    kk_management_mode: stor('kk_management_mode') || 'envelope',
     exportedAt: Date.now(),
   };
 }
@@ -5039,12 +5272,14 @@ function applyBackupObject(d){
   AppState.accounts = d.kk_accounts || [];
   AppState.transactions = d.kk_transactions || [];
   AppState.cardBillings = d.kk_card_billings || {};
+  AppState.wallets = d.kk_wallets || [];
   stor('kk_income_actual', d.kk_income_actual || {});
   stor('kk_monthly_budgets', d.kk_monthly_budgets || {});
   stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym || null);
   stor('kk_savings_first', d.kk_savings_first || {});
   stor('kk_income_history', d.kk_income_history || {});
   stor('kk_home_income_mode', d.kk_home_income_mode || 'prev');
+  stor('kk_management_mode', d.kk_management_mode || 'envelope');
   saveLocalState();
   if (currentUser) saveToFirestore();
 }
