@@ -905,7 +905,7 @@
     <span class="nav-icon">💳</span>カード
   </button>
   <button class="nav-item" data-page="envelope" onclick="goToPage('envelope')">
-    <span class="nav-icon">✉️</span>封筒
+    <span class="nav-icon">✉️</span>管理
   </button>
   <button class="nav-item" data-page="analysis" onclick="goToPage('analysis')">
     <span class="nav-icon">📊</span>分析
@@ -1472,7 +1472,7 @@ function goToPage(page){
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === page);
   });
-  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', envelope:'封筒管理', settings:'設定', goals:'理想の目標'};
+  const titles = {home:'家計手帖', history:'履歴', analysis:'分析', cards:'カード管理', envelope:'管理', settings:'設定', goals:'理想の目標'};
   document.getElementById('page-title').textContent = titles[page] || '家計手帖';
   document.getElementById('month-selector-wrap').style.display = (page==='settings' || page==='goals') ? 'none' : 'flex';
   document.getElementById('fab-add').style.display = (page==='settings' || page==='goals') ? 'none' : 'flex';
@@ -3834,7 +3834,7 @@ function renderCategoriesSettings(){
         <span class="cbd-value cbd-diff" id="cat-budget-diff" style="color:${(incomeTotal - (expenseTotal+savingsTotal+repayTotal))>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(incomeTotal - (expenseTotal + savingsTotal + repayTotal))}</span>
       </div>
     </div>
-    <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「封筒」ページの「予算を編集」から変更できます。項目は「⠿」を長押ししてドラッグすると並び替えられます。</div>`;
+    <div style="font-size:13.5px;color:var(--gray-muted);margin-bottom:14px;line-height:1.7;padding:10px 12px;background:var(--cream-deep);border-radius:10px">ここで設定する予算が「デフォルト予算」です。月ごとの予算は「管理」ページの「予算を編集」から変更できます。項目は「⠿」を長押ししてドラッグすると並び替えられます。</div>`;
   groups.forEach(g => {
     const cats = AppState.categories.filter(c => c.group === g);
     html += `<div class="settings-group-label">${g}</div><div class="card settings-list cat-drag-group">`;
