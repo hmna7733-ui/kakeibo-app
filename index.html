@@ -3650,6 +3650,10 @@ function renderSettings(){
   ];
 
   let html = `
+    <button onclick="manualReload()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid var(--terracotta);background:var(--terracotta-soft);color:var(--terracotta-deep);font-family:'Zen Maru Gothic',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:20px">
+      🔄 アプリを最新版に更新する
+    </button>
+
     <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px">
       ${tabs.map(t => `<button class="settings-tab ${t.id===_settingsTab?'active':''}" onclick="switchSettingsTab('${t.id}')">${t.label}</button>`).join('')}
     </div>
