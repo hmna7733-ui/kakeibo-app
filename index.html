@@ -810,7 +810,7 @@
       <div class="summary-label">今月の収支</div>
       <div class="summary-balance" id="home-balance">¥0</div>
       <div class="summary-row">
-        <span class="label"><span class="dot income"></span>先月の収入</span>
+        <span class="label"><span class="dot income"></span><span id="home-income-label">先月の収入</span></span>
         <span class="value" id="home-income">¥0</span>
       </div>
       <div class="summary-row">
@@ -1523,14 +1523,19 @@ function renderHome(){
   const prevYm = `${prevDate.getFullYear()}-${pad2(prevDate.getMonth()+1)}`;
   const prevSummary = getMonthSummary(prevYm);
 
-  // 収支バランス = 先月収入 - 今月支出
-  const balance = prevSummary.income - summary.totalSpend;
+  // ホームの収支欄に使う収入基準（設定›収入 の一番上で切り替え可能。デフォルトは先月）
+  const incomeMode = getHomeIncomeMode();
+  const incomeForBalance = incomeMode === 'current' ? summary.income : prevSummary.income;
+
+  // 収支バランス = 選んだ基準の収入 - 今月支出
+  const balance = incomeForBalance - summary.totalSpend;
 
   const balEl = document.getElementById('home-balance');
   balEl.innerHTML = `<span class="yen">¥</span>${Math.round(balance).toLocaleString()}`;
   balEl.classList.toggle('minus', balance < 0);
 
-  document.getElementById('home-income').textContent = fmtYen(prevSummary.income);
+  document.getElementById('home-income-label').textContent = incomeMode === 'current' ? '今月の収入' : '先月の収入';
+  document.getElementById('home-income').textContent = fmtYen(incomeForBalance);
   document.getElementById('home-expense').textContent = fmtYen(summary.totalSpend);
 
   // ジャンル別カード（収入・支出・貯蓄・投資・返済）
@@ -2630,6 +2635,28 @@ function getEnvelopeResetYm(){
 function setEnvelopeResetYm(ym){
   stor('kk_envelope_reset_ym', ym);
   if (currentUser) saveToFirestore();
+}
+
+// ホームの「今月の収支」で使う収入の基準（'prev'=先月の収入／'current'=今月の収入）
+// デフォルトは'prev'（先取り家計向け）。アカウントごとに設定で切り替えられる。
+function getHomeIncomeMode(){
+  return stor('kk_home_income_mode') || 'prev';
+}
+
+function setHomeIncomeMode(mode){
+  stor('kk_home_income_mode', mode);
+  if (currentUser) saveToFirestore();
+}
+
+function confirmSetHomeIncomeMode(mode){
+  if (getHomeIncomeMode() === mode) return; // 変更なし
+  const label = mode === 'current' ? '今月の収入' : '先月の収入';
+  showConfirm(`ホームの「今月の収支」を「${label} − 今月の支出」で計算するように変更します。よろしいですか？`, () => {
+    setHomeIncomeMode(mode);
+    showToast(`ホームの収支表示を「${label}」基準に変更しました`);
+    renderSettingsTabContent();
+    refreshActivePage();
+  }, '変更する');
 }
 
 function getEnvelopeBalance(ym, catName){
@@ -3889,9 +3916,22 @@ function addCategory(group){
 function renderIncomeSettings(){
   const ym = AppState.currentMonth;
   const actual = getIncomeActualForMonth(ym); // 日付ドラムの選択値のみ保持（金額はもう使わない）
+  const incomeMode = getHomeIncomeMode();
 
-  // ① 収入を記帳（入力ボタン→記帳データへ直接反映）
-  let html = `<div class="settings-group-label">${monthLabel(ym)}の収入を記帳</div>`;
+  // ① ホームの「今月の収支」に使う収入の基準（先月／今月）
+  let html = `
+    <div class="settings-group-label" style="margin-top:0">ホームの収支欄に使う収入</div>
+    <div style="font-size:13px;color:var(--gray-muted);margin-bottom:10px;line-height:1.7">
+      ホーム画面の「今月の収支」は、デフォルトでは「先月の収入 − 今月の支出」で計算されます。先取り家計（先月の給料でその月をやりくりする考え方）向けの設定です。「今月」に切り替えると「今月の収入 − 今月の支出」で計算されるようになります。
+    </div>
+    <div class="income-mode-toggle">
+      <button type="button" class="income-mode-btn ${incomeMode==='prev'?'active':''}" onclick="confirmSetHomeIncomeMode('prev')">先月の収入で計算</button>
+      <button type="button" class="income-mode-btn ${incomeMode==='current'?'active':''}" onclick="confirmSetHomeIncomeMode('current')">今月の収入で計算</button>
+    </div>
+  `;
+
+  // ② 収入を記帳（入力ボタン→記帳データへ直接反映）
+  html += `<div class="settings-group-label">${monthLabel(ym)}の収入を記帳</div>`;
   AppState.incomeSources.forEach((s, idx) => {
     const entry = actual[s.name] || {};
     const day = typeof entry === 'object' ? (entry.day || null) : null;
@@ -4407,6 +4447,19 @@ function injectSettingsStyles(){
   const style = document.createElement('style');
   style.id = 'settings-extra-style';
   style.textContent = `
+    .income-mode-toggle {
+      display: flex; gap: 8px; margin-bottom: 18px;
+    }
+    .income-mode-btn {
+      flex: 1; padding: 12px 8px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: var(--white);
+      color: var(--ink-soft); font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 13.5px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .income-mode-btn.active {
+      background: var(--terracotta); border-color: var(--terracotta); color: #fff;
+    }
     .cat-budget-summary-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
       margin-bottom: 14px;
@@ -4667,6 +4720,7 @@ async function saveToFirestore(ts){
       kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
       kk_savings_first: stor('kk_savings_first') || {},
       kk_income_history: stor('kk_income_history') || {},
+      kk_home_income_mode: stor('kk_home_income_mode') || 'prev',
       updatedAt
     });
     // このタイムスタンプまでは同期済み。以降の編集だけが「未同期」として扱われる
@@ -4706,6 +4760,7 @@ function initNewUser(){
   stor('kk_monthly_budgets', {});
   stor('kk_savings_first', {});
   stor('kk_envelope_reset_ym', null);
+  stor('kk_home_income_mode', 'prev');
 }
 
 let _firestoreUnsubscribe = null;
@@ -4818,6 +4873,7 @@ function applyCloudSnapshot(d, cloudUpdatedAt, uid){
   if (d.kk_income_actual) stor('kk_income_actual', d.kk_income_actual);
   if (d.kk_monthly_budgets) stor('kk_monthly_budgets', d.kk_monthly_budgets);
   if (d.kk_envelope_reset_ym) stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym);
+  if (d.kk_home_income_mode) stor('kk_home_income_mode', d.kk_home_income_mode);
   if (d.kk_savings_first) stor('kk_savings_first', d.kk_savings_first);
   if (d.kk_income_history) stor('kk_income_history', d.kk_income_history);
 
@@ -4854,7 +4910,7 @@ const KK_STORAGE_KEYS = [
   'kk_categories','kk_income_sources','kk_payment_methods',
   'kk_accounts','kk_transactions','kk_card_billings',
   'kk_income_actual','kk_income_history','kk_monthly_budgets',
-  'kk_savings_first','kk_envelope_reset_ym'
+  'kk_savings_first','kk_envelope_reset_ym','kk_home_income_mode'
 ];
 
 function clearAllLocalData(){
@@ -4925,6 +4981,7 @@ function buildBackupObject(){
     kk_envelope_reset_ym: stor('kk_envelope_reset_ym') || null,
     kk_savings_first: stor('kk_savings_first') || {},
     kk_income_history: stor('kk_income_history') || {},
+    kk_home_income_mode: stor('kk_home_income_mode') || 'prev',
     exportedAt: Date.now(),
   };
 }
@@ -4983,6 +5040,7 @@ function applyBackupObject(d){
   stor('kk_envelope_reset_ym', d.kk_envelope_reset_ym || null);
   stor('kk_savings_first', d.kk_savings_first || {});
   stor('kk_income_history', d.kk_income_history || {});
+  stor('kk_home_income_mode', d.kk_home_income_mode || 'prev');
   saveLocalState();
   if (currentUser) saveToFirestore();
 }
