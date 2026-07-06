@@ -998,13 +998,37 @@ let skipLoginMode = false;
 /* ============================================================
    データモデル初期値（共有用に空の状態。既存アカウントのデータには影響しません）
    ============================================================ */
-const DEFAULT_CATEGORIES = [];
+const DEFAULT_CATEGORIES = [
+  {name:'食費', group:'変動費', budget:0, detail:'食材費、自炊にかかる費用'},
+  {name:'外食費', group:'変動費', budget:0, detail:'外食、テイクアウト、カフェ代など'},
+  {name:'日用品費', group:'変動費', budget:0, detail:'洗剤、ティッシュなど生活消耗品'},
+  {name:'医療費', group:'変動費', budget:0, detail:'病院代、薬代、通院にかかる費用'},
+  {name:'衣服・美容費', group:'変動費', budget:0, detail:'衣類、美容院、化粧品など'},
+  {name:'娯楽費', group:'変動費', budget:0, detail:'趣味、レジャー、エンタメにかかる費用'},
+  {name:'交際費', group:'変動費', budget:0, detail:'飲み会、プレゼント、冠婚葬祭など'},
+  {name:'交通費', group:'変動費', budget:0, detail:'電車代、バス代、ガソリン代など'},
+  {name:'教育・学習費', group:'変動費', budget:0, detail:'書籍、習い事、学費など'},
+  {name:'国保', group:'変動費', budget:0, detail:'国民健康保険料'},
+  {name:'居住費', group:'固定費', budget:0, detail:'家賃、住宅ローン、管理費など'},
+  {name:'水道光熱費', group:'固定費', budget:0, detail:'電気・ガス・水道代'},
+  {name:'通信費', group:'固定費', budget:0, detail:'スマホ代、ネット回線代'},
+  {name:'車費', group:'固定費', budget:0, detail:'車のローン、保険、車検、駐車場代など'},
+  {name:'貯金', group:'貯蓄', budget:0, detail:'将来のための積立貯金'},
+  {name:'NISA', group:'投資保険', budget:0, detail:'NISA口座での積立・投資'},
+  {name:'iDeCo', group:'投資保険', budget:0, detail:'確定拠出年金の積立'},
+  {name:'株式・外貨', group:'投資保険', budget:0, detail:'株式投資、外貨預金など'},
+  {name:'生命保険', group:'投資保険', budget:0, detail:'生命保険・医療保険の保険料'},
+];
 
-const DEFAULT_INCOME_SOURCES = [];
+const DEFAULT_INCOME_SOURCES = [
+  {name:'給料', budget:0, detail:'毎月の給与収入'},
+  {name:'ボーナス', budget:0, detail:'賞与・臨時収入'},
+  {name:'その他', budget:0, detail:'副業やその他の収入'},
+];
 
 const DEFAULT_PAYMENT_METHODS = [
   {name:'現金', isCard:false, color:'#B8923F'},
-  {name:'クレジットカード', isCard:true, color:'#C1683F'},
+  {name:'引き落とし', isCard:false, color:'#7C8B6F'},
 ];
 
 const DEFAULT_ACCOUNTS = [];
@@ -4652,17 +4676,17 @@ async function saveToFirestore(ts){
 }
 
 /* ============================================================
-   新規ユーザー向け空のデフォルトデータ
-   （共有相手が新規登録した際に、既存アカウントの設定・履歴が
-   一切引き継がれないよう、すべて空の状態から始める）
+   新規ユーザー向けデフォルトデータ
+   （共有相手が新規登録した際に、既存アカウントの個人的な履歴・設定は
+   一切引き継がれず、一般的な項目名だけの共通テンプレートから始まる）
    ============================================================ */
-const NEW_USER_DEFAULT_CATEGORIES = [];
-const NEW_USER_DEFAULT_INCOME_SOURCES = [];
-const NEW_USER_DEFAULT_PAYMENT_METHODS = [];
+const NEW_USER_DEFAULT_CATEGORIES = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+const NEW_USER_DEFAULT_INCOME_SOURCES = JSON.parse(JSON.stringify(DEFAULT_INCOME_SOURCES));
+const NEW_USER_DEFAULT_PAYMENT_METHODS = JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
 const NEW_USER_DEFAULT_ACCOUNTS = [];
 
 function initNewUser(){
-  // 新規ユーザーはデフォルトデータ（空・最小限）で開始
+  // 新規ユーザーは共通テンプレート（一般的な項目名・予算はすべて0）で開始
   AppState.categories = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_CATEGORIES));
   AppState.incomeSources = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_INCOME_SOURCES));
   AppState.paymentMethods = JSON.parse(JSON.stringify(NEW_USER_DEFAULT_PAYMENT_METHODS));
