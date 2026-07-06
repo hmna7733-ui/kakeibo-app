@@ -3011,8 +3011,12 @@ function setManagementMode(mode){
 
 function switchManagementMode(mode){
   if (getManagementMode() === mode) return;
-  setManagementMode(mode);
-  renderEnvelopePage();
+  const label = mode === 'wallet' ? '財布で管理する' : '項目別管理（封筒）';
+  showConfirm(`これ以降、「管理」ページを開くと常に「${label}」が表示されるようになります。よろしいですか？`, () => {
+    setManagementMode(mode);
+    showToast(`「${label}」をこのアカウントのデフォルトに設定しました`);
+    renderEnvelopePage();
+  }, '設定する');
 }
 
 function renderEnvelopePage(){
