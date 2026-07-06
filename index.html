@@ -944,6 +944,10 @@
       <button type="button" class="drum-select-btn" id="tx-method-trigger" onclick="openTxFieldDrum('method')">選択してください</button>
     </div>
     <div class="form-field">
+      <label>口座設定</label>
+      <button type="button" class="drum-select-btn" id="tx-account-trigger" onclick="openTxFieldDrum('account')">現金</button>
+    </div>
+    <div class="form-field">
       <label>メモ（任意）</label>
       <input type="text" id="tx-memo" placeholder="メモ">
     </div>
@@ -1713,6 +1717,7 @@ function openHomeGenreTxModal(genre){
   _txIsIncome = (genre === '収入');
   _selectedTxCategory = catOptions[0];
   _selectedTxMethod = cashMethod ? '現金' : (AppState.paymentMethods[0]?.name || null);
+  _selectedTxAccount = '現金';
 
   document.getElementById('tx-modal-title').textContent = `${genreLabel(genre)}を記帳`;
   document.getElementById('tx-date').value = todayYMD();
@@ -1900,6 +1905,7 @@ function escapeHtml(s){
    ============================================================ */
 let _selectedTxCategory = null;
 let _selectedTxMethod = null;
+let _selectedTxAccount = '現金'; // 「口座設定」ドラム（現金＝口座残高に反映しない）
 let _selectedTxGenre = '支出';
 let _txGenreLocked = false; // ホームのジャンルカードから開いた時はジャンル変更不可
 let _txIsIncome = false;
@@ -1935,6 +1941,11 @@ function updateTxFieldTriggerLabels(){
     methodBtn.classList.toggle('empty', !_selectedTxMethod);
     methodBtn.onclick = () => openTxFieldDrum('method');
   }
+  const accBtn = document.getElementById('tx-account-trigger');
+  if (accBtn) {
+    accBtn.textContent = _selectedTxAccount || '現金';
+    accBtn.onclick = () => openTxFieldDrum('account');
+  }
 }
 
 function openTxFieldDrum(field){
@@ -1948,6 +1959,10 @@ function openTxFieldDrum(field){
     values = categoryOptionsForGenre(_selectedTxGenre);
     title = _selectedTxGenre ? `${genreLabel(_selectedTxGenre)}の項目を選択` : '項目を選択';
     currentVal = _selectedTxCategory;
+  } else if (field === 'account') {
+    values = ['現金', ...AppState.accounts.map(a => a.name)];
+    title = '口座設定を選択';
+    currentVal = _selectedTxAccount || '現金';
   } else {
     values = AppState.paymentMethods.map(m => m.name);
     title = '支払い方法を選択';
@@ -1985,6 +2000,7 @@ function openTxModal(txId){
   const catOptions = categoryOptionsForGenre(_selectedTxGenre);
   _selectedTxCategory = tx ? tx.category : (catOptions[0] || null);
   _selectedTxMethod = tx ? tx.method : (methods[0] || null);
+  _selectedTxAccount = tx ? (tx.account || '現金') : '現金';
   updateTxFieldTriggerLabels();
 
   document.getElementById('tx-modal-overlay').classList.add('show');
@@ -2010,6 +2026,53 @@ function submitTransaction(){
     return;
   }
 
+  const isEditing = !!AppState.editingTxId;
+  // 「現金」は口座残高に反映しない。実際の口座が選ばれている時だけ残高計算を行う
+  const accountName = (_selectedTxAccount && _selectedTxAccount !== '現金') ? _selectedTxAccount : null;
+
+  const doFinalize = (applyAccountDelta) => {
+    finalizeTransactionSubmit(date, amount, memo, accountName);
+    if (applyAccountDelta) {
+      const acc = AppState.accounts.find(a => a.name === accountName);
+      if (acc) {
+        // ジャンルに応じて口座残高への反映方向を決める：
+        // 収入・貯蓄 → 口座残高に＋　／　支出・返済・投資 → 口座残高から−
+        const isPlus = (_selectedTxGenre === '収入' || _selectedTxGenre === '貯蓄');
+        const newBalance = (acc.balance || 0) + (isPlus ? amount : -amount);
+        acc.balance = newBalance;
+        if (!acc.balanceHistory) acc.balanceHistory = [];
+        acc.balanceHistory.push({ value: newBalance, savedAt: Date.now() });
+      }
+    }
+    saveLocalState();
+    showToast(isEditing ? '記録を更新しました' : (applyAccountDelta ? '記帳し、口座残高も保存しました' : '記帳しました'));
+    closeTxModal();
+    refreshActivePage();
+  };
+
+  // 新規記帳で、かつ実際の口座が選ばれている場合だけ、残高更新の確認を挟む
+  if (!isEditing && accountName) {
+    const acc = AppState.accounts.find(a => a.name === accountName);
+    if (!acc) {
+      showToast('選択した口座が見つかりませんでした');
+      return;
+    }
+    const isPlus = (_selectedTxGenre === '収入' || _selectedTxGenre === '貯蓄');
+    const currentBalance = acc.balance || 0;
+    const newBalance = currentBalance + (isPlus ? amount : -amount);
+    showConfirm(
+      `口座「${acc.name}」の残高を更新します。\n${fmtYen(currentBalance)} ${isPlus?'＋':'−'} ${fmtYen(amount)} = ${fmtYen(newBalance)}\nこの内容で記帳し、口座残高も保存します。よろしいですか？`,
+      () => doFinalize(true),
+      '記帳する'
+    );
+    return;
+  }
+
+  doFinalize(false);
+}
+
+// 記帳データ本体の作成・更新のみを行う（口座残高の計算はsubmitTransaction側で担当）
+function finalizeTransactionSubmit(date, amount, memo, accountName){
   if (AppState.editingTxId) {
     const tx = AppState.transactions.find(t => t.id === AppState.editingTxId);
     if (tx) {
@@ -2017,24 +2080,20 @@ function submitTransaction(){
       tx.method = _selectedTxMethod; tx.memo = memo;
       tx.genre = _selectedTxGenre;
       tx.isIncome = _selectedTxGenre === '収入';
+      tx.account = accountName;
     }
-    showToast('記録を更新しました');
   } else {
     AppState.transactions.push({
       id: nextTxId(), date, amount, category: _selectedTxCategory,
       method: _selectedTxMethod, memo,
       genre: _selectedTxGenre,
       isIncome: _selectedTxGenre === '収入',
+      account: accountName,
       createdAt: Date.now()
     });
-    showToast('記帳しました');
   }
-
   _txIsIncome = false;  // フラグリセット
   _txGenreLocked = false;
-  saveLocalState();
-  closeTxModal();
-  refreshActivePage();
 }
 
 function deleteCurrentTransaction(){
@@ -2547,6 +2606,7 @@ function closeDrum(apply){
     }
     if (_drumTargetField === 'tx-category') { _selectedTxCategory = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'tx-method') { _selectedTxMethod = val; updateTxFieldTriggerLabels(); }
+    if (_drumTargetField === 'tx-account') { _selectedTxAccount = val; updateTxFieldTriggerLabels(); }
     if (_drumTargetField === 'analysis-category') { _analysisSelectedCategory = val; renderAnalysis(); }
     if (_drumTargetField && _drumTargetField.startsWith('range-month-start-')) {
       const idx = parseInt(_drumTargetField.replace('range-month-start-',''), 10);
@@ -3532,6 +3592,7 @@ function openTxModalForCategory(catName){
   _selectedTxGenre = categoryGenre(catName);
   _selectedTxCategory = catName;
   _selectedTxMethod = AppState.paymentMethods[0]?.name || null;
+  _selectedTxAccount = '現金';
   _txIsIncome = _selectedTxGenre === '収入';
   AppState.editingTxId = null;
   document.getElementById('tx-modal-title').textContent = `${catName}を記帳`;
