@@ -3181,14 +3181,26 @@ function renderEnvelopeModeContent(){
    財布管理モード（支払い方法で管理する）
    ============================================================ */
 function getWalletSummary(wallet, ym){
-  const txs = getTransactionsForMonth(ym);
-  const incomeTotal = txs
+  // 「今月の収入／支払い」は参考情報として今月分のみで表示
+  const monthTxs = getTransactionsForMonth(ym);
+  const incomeTotal = monthTxs
     .filter(t => (wallet.incomeSources||[]).includes(t.category) && txGenre(t) === '収入')
     .reduce((a,t) => a + t.amount, 0);
-  const expenseTotal = txs
+  const expenseTotal = monthTxs
     .filter(t => (wallet.paymentMethods||[]).includes(t.method) && txGenre(t) !== '収入')
     .reduce((a,t) => a + t.amount, 0);
-  return { incomeTotal, expenseTotal, balance: incomeTotal - expenseTotal };
+
+  // 財布の残高そのものは「今その財布に入っている金額」を表すため、
+  // 月ごとにリセットせず、過去（開始）からこの月末までの累計で計算する
+  const cumulativeTxs = AppState.transactions.filter(t => t.date.substring(0,7) <= ym);
+  const cumulativeIncome = cumulativeTxs
+    .filter(t => (wallet.incomeSources||[]).includes(t.category) && txGenre(t) === '収入')
+    .reduce((a,t) => a + t.amount, 0);
+  const cumulativeExpense = cumulativeTxs
+    .filter(t => (wallet.paymentMethods||[]).includes(t.method) && txGenre(t) !== '収入')
+    .reduce((a,t) => a + t.amount, 0);
+
+  return { incomeTotal, expenseTotal, balance: cumulativeIncome - cumulativeExpense };
 }
 
 function renderWalletModeContent(){
@@ -3206,7 +3218,10 @@ function renderWalletModeContent(){
           <div class="cat-item" style="cursor:pointer" onclick="openWalletHistoryModal(${idx})">
             <div class="cat-item-top" style="align-items:center">
               <span class="cat-name">👛 ${escapeHtml(w.name)}</span>
-              <span style="font-size:21px;font-weight:800;font-family:'Shippori Mincho',serif;color:${balance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(balance).replace('+','')}</span>
+              <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+                <span style="font-size:10.5px;color:var(--gray-muted);font-weight:700">現在の残高</span>
+                <span style="font-size:21px;font-weight:800;font-family:'Shippori Mincho',serif;color:${balance>=0?'var(--sage-deep)':'var(--red-deficit)'}">${fmtYenSigned(balance).replace('+','')}</span>
+              </span>
             </div>
             <div style="font-size:13px;color:var(--gray-muted);margin-bottom:8px">今月の収入 ${fmtYen(incomeTotal)} − 今月の支払い ${fmtYen(expenseTotal)}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
